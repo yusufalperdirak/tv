@@ -90,6 +90,9 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         channels = Channel.loadAll(this);
         Epg.ensureLoaded(this);
+        YouTubeLive.init(this);
+        // YouTube'dan açılan kanalların yayınını önceden hazırla (anında açılsın)
+        for (Channel c : channels) if (!c.youtube.isEmpty()) YouTubeLive.find(c.youtube, false, id -> { });
         selected = channels.get(clamp(Prefs.last(this)));
 
         builtEdge = Prefs.edge(this);
@@ -504,6 +507,11 @@ public class MainActivity extends Activity {
         if (!c.youtube.isEmpty()) {
             preview.stop();
             ytPreview.web.setVisibility(View.VISIBLE);
+            String mem = YouTubeLive.remembered(c.youtube);
+            if (mem != null) {
+                ytPreview.play(mem, muted);
+                return;
+            }
             YouTubeLive.find(c.youtube, false, id -> {
                 if (t != ytToken || !resumed || selected != c) return;
                 if (id != null) {

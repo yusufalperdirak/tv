@@ -1,5 +1,7 @@
 package com.turktv.app;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -31,6 +33,24 @@ final class YouTubeLive {
     private static final ExecutorService pool = Executors.newSingleThreadExecutor();
     private static final Handler ui = new Handler(Looper.getMainLooper());
 
+    private static SharedPreferences store;
+
+    /** Uygulama açılırken bir kez çağrılır: bulunan yayın kimlikleri cihazda hatırlanır. */
+    static void init(Context c) {
+        if (store == null) store = c.getApplicationContext().getSharedPreferences("yt", Context.MODE_PRIVATE);
+    }
+
+    /** Daha önce bulunmuş yayın kimliği (varsa) — beklemeden hemen başlatmak için. */
+    static String remembered(String handle) {
+        return store == null ? null : store.getString(handle, null);
+    }
+
+    static void forget(String handle) {
+        if (store != null) store.edit().remove(handle).apply();
+        checkedAt.remove(handle);
+        ids.remove(handle);
+    }
+
     static void find(final String handle, boolean force, final Callback cb) {
         Long t = checkedAt.get(handle);
         if (!force && t != null && System.currentTimeMillis() - t < FRESH_MS) {
@@ -39,8 +59,12 @@ final class YouTubeLive {
         }
         pool.execute(() -> {
             String id = fetch(handle);
-            if (id != null) ids.put(handle, id);
-            else ids.remove(handle);
+            if (id != null) {
+                ids.put(handle, id);
+                if (store != null) store.edit().putString(handle, id).apply();
+            } else {
+                ids.remove(handle);
+            }
             checkedAt.put(handle, System.currentTimeMillis());
             ui.post(() -> cb.done(id));
         });

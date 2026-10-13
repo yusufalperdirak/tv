@@ -44,6 +44,7 @@ public class PlayerActivity extends Activity {
     private boolean usingYt;      // şu an YouTube'dan mı oynuyor
     private boolean ytFailed;     // bu kanal için YouTube denendi ve olmadı → listedeki linke geç
     private int ytToken;
+    private boolean ytFromMemory; // hatırlanan yayın kimliğiyle mi başlatıldı
     private int state = -1;
     private long stateSince;
     private boolean userPaused;
@@ -98,6 +99,7 @@ public class PlayerActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         channels = Channel.loadAll(this);
         Epg.ensureLoaded(this);
+        YouTubeLive.init(this);
         index = Math.max(0, Math.min(getIntent().getIntExtra(EXTRA_INDEX, 0), channels.size() - 1));
 
         FrameLayout root = new FrameLayout(this);
@@ -419,11 +421,23 @@ public class PlayerActivity extends Activity {
             usingYt = true;
             stream.stop();
             yt.web.setVisibility(View.VISIBLE);
-            YouTubeLive.find(c.youtube, force, id -> {
-                if (t != ytToken || stopped) return;
-                if (id == null) ytFallback();
-                else yt.play(id, false);
-            });
+            final String mem = force ? null : YouTubeLive.remembered(c.youtube);
+            ytFromMemory = mem != null;
+            if (mem != null) {
+                // hatırlanan yayınla hemen başla, arka planda güncel mi diye bak
+                yt.play(mem, false);
+                YouTubeLive.find(c.youtube, true, id -> {
+                    if (t != ytToken || stopped || id == null || id.equals(mem) || state == 1) return;
+                    ytFromMemory = false;
+                    yt.play(id, false);
+                });
+            } else {
+                YouTubeLive.find(c.youtube, force, id -> {
+                    if (t != ytToken || stopped) return;
+                    if (id == null) ytFallback();
+                    else yt.play(id, false);
+                });
+            }
         } else {
             usingYt = false;
             yt.stop();
@@ -437,6 +451,15 @@ public class PlayerActivity extends Activity {
 
     /** YouTube'da yayın yok / açılmadı: aynı kanalı listedeki linkten aç. */
     private void ytFallback() {
+        if (ytFromMemory) {
+            // hatırlanan yayın artık geçerli değil: bir kez de güncelini arayıp dene
+            ytFromMemory = false;
+            YouTubeLive.forget(cur().youtube);
+            ytToken++;
+            yt.stop();
+            playChannel(index, true);
+            return;
+        }
         ytFailed = true;
         ytToken++;
         usingYt = false;

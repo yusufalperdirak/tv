@@ -2,6 +2,7 @@ package com.turktv.app;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
@@ -42,7 +43,14 @@ final class YtPlayer {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public Bitmap getDefaultVideoPoster() {
+                // Android'in varsayılan gri "oynat" simgesi görünmesin
+                return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+            }
+        });
+        web.setAlpha(0f); // görüntü gelene kadar gizli (arkadaki yükleme simgesi görünür)
         web.setWebViewClient(new WebViewClient());
         web.addJavascriptInterface(new Bridge(), "Android");
     }
@@ -53,6 +61,8 @@ final class YtPlayer {
 
     void play(String videoId, boolean muted) {
         int t = ++token;
+        web.animate().cancel();
+        web.setAlpha(0f);
         String html = "<!doctype html><html><head>"
                 + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}"
@@ -79,6 +89,8 @@ final class YtPlayer {
 
     void stop() {
         token++;
+        web.animate().cancel();
+        web.setAlpha(0f);
         web.loadUrl("about:blank");
     }
 
@@ -100,7 +112,9 @@ final class YtPlayer {
         @JavascriptInterface
         public void onState(int t, int state) {
             ui.post(() -> {
-                if (t == token && listener != null) listener.onState(state);
+                if (t != token) return;
+                if (state == 1) web.animate().alpha(1f).setDuration(200).start();
+                if (listener != null) listener.onState(state);
             });
         }
 
