@@ -106,7 +106,7 @@ final class Epg {
             refreshing = true;
         }
         final Context app = ctx.getApplicationContext();
-        new Thread(() -> {
+        Thread th = new Thread(() -> {
             boolean ok = false;
             try {
                 Map<String, List<Prog>> m = download(url, channels);
@@ -134,7 +134,9 @@ final class Epg {
             ui.post(() -> {
                 if (onDone != null) onDone.done(changed);
             });
-        }).start();
+        });
+        th.setPriority(Thread.MIN_PRIORITY); // yayını etkilemesin
+        th.start();
     }
 
     interface OnDone {

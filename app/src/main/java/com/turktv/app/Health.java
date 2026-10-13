@@ -26,7 +26,7 @@ final class Health {
     private static final long FRESH_MS = 10 * 60 * 1000;
     private static final Map<String, Integer> status = new ConcurrentHashMap<>();
     private static final Map<String, Long> checkedAt = new ConcurrentHashMap<>();
-    private static final ExecutorService pool = Executors.newFixedThreadPool(6);
+    private static final ExecutorService pool = Executors.newFixedThreadPool(3);
     private static final Handler ui = new Handler(Looper.getMainLooper());
 
     static int status(Channel c) {
@@ -60,7 +60,7 @@ final class Health {
             con.setConnectTimeout(6000);
             con.setReadTimeout(6000);
             con.setInstanceFollowRedirects(true);
-            con.setRequestProperty("User-Agent", c.ua != null ? c.ua : DEFAULT_UA);
+            con.setRequestProperty("User-Agent", c.ua != null ? c.ua : StreamPlayer.BROWSER_UA);
             if (c.referer != null) con.setRequestProperty("Referer", c.referer);
             int code = con.getResponseCode();
             if (code < 200 || code >= 400) return false;

@@ -91,7 +91,6 @@ public class MainActivity extends Activity {
 
         buildUi();
         rebuildRows(selected);
-        Health.checkAll(channels, this::onStatus);
         if (Prefs.autostart(this)) WakeService.start(this);
 
         if (savedInstanceState == null) {
@@ -581,10 +580,15 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(previewRunnable);
         ui.postDelayed(previewRunnable, 300);
 
-        Health.checkAll(channels, this::onStatus);
-        Epg.refreshIfNeeded(this, channels, changed -> {
-            if (changed) updateInfo();
-        });
+        // Yayın açılırken bağlantıyı yormamak için arka plan işleri biraz sonra
+        ui.postDelayed(() -> {
+            if (resumed) Health.checkAll(channels, this::onStatus);
+        }, 8000);
+        ui.postDelayed(() -> {
+            if (resumed) Epg.refreshIfNeeded(this, channels, changed -> {
+                if (changed) updateInfo();
+            });
+        }, 25000);
         ui.removeCallbacks(tick);
         tick.run();
         maybeAskOverlay();
@@ -597,7 +601,7 @@ public class MainActivity extends Activity {
         if (moving != null) endMove(true);
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(tick);
-        preview.stop();
+        preview.detach(); // tam ekrana geçilirse yayın kesilmeden devam eder
     }
 
     @Override

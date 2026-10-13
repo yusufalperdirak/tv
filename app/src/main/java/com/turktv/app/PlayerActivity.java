@@ -367,21 +367,22 @@ public class PlayerActivity extends Activity {
 
     private void changeChannel(int i) {
         retries = 0;
-        playChannel(i);
+        playChannel(i, false);
     }
 
     private void refresh() {
         Toast.makeText(this, cur().name + " yenileniyor", Toast.LENGTH_SHORT).show();
-        changeChannel(index);
+        retries = 0;
+        playChannel(index, true);
     }
 
-    private void playChannel(int i) {
+    private void playChannel(int i, boolean force) {
         index = wrap(i);
         Prefs.last(this, index);
         hideError();
         userPaused = false;
         setState(-1);
-        stream.play(cur(), false);
+        stream.play(cur(), false, force);
         updateOsd();
         showOsd();
         updateLoading();
@@ -431,7 +432,7 @@ public class PlayerActivity extends Activity {
             showError();
             return;
         }
-        playChannel(index);
+        playChannel(index, true);
     }
 
     private void onTick() {
@@ -444,7 +445,8 @@ public class PlayerActivity extends Activity {
             }
             if (errorShown && now - errorSince > RECHECK_MS) {
                 errorSince = now;
-                changeChannel(index);
+                retries = 0;
+                playChannel(index, true);
             }
         }
         if (now % 20000 < 1000) updateEpg();
@@ -826,7 +828,7 @@ public class PlayerActivity extends Activity {
         super.onStop();
         stopped = true;
         ui.removeCallbacks(tick);
-        stream.stop();
+        stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır
     }
 
     @Override
