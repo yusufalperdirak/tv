@@ -1,6 +1,7 @@
 package com.turktv.app;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -47,7 +49,8 @@ public class PlayerActivity extends Activity {
     private boolean sleeping;
 
     private View sink;
-    private TextView msg;
+    private ProgressBar spinner;     // ortadaki dönen yükleme simgesi (ilk açılış)
+    private ProgressBar osdSpinner;  // kanal adının yanındaki küçük simge
     private LinearLayout clockBox;
     private TextView clockLocal, clockTr;
     private FrameLayout osd;
@@ -115,11 +118,8 @@ public class PlayerActivity extends Activity {
         sink.setFocusable(true);
         root.addView(sink, new FrameLayout.LayoutParams(1, 1));
 
-        msg = Ui.text(this, "", 17, Ui.MEDIUM, Ui.SOFT);
-        msg.setPadding(px(22), px(12), px(22), px(12));
-        msg.setBackground(Ui.rounded(this, 0xB30B0D12, 22));
-        msg.setVisibility(View.GONE);
-        root.addView(msg, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        spinner = spinner();
+        root.addView(spinner, new FrameLayout.LayoutParams(px(56), px(56), Gravity.CENTER));
 
         buildClock(root);
         buildOsd(root);
@@ -192,6 +192,8 @@ public class PlayerActivity extends Activity {
         osdName.setEllipsize(TextUtils.TruncateAt.END);
         osdName.setMaxWidth(px(420));
         r1.addView(osdName);
+        osdSpinner = spinner();
+        r1.addView(osdSpinner, Ui.margins(this, px(24), px(24), 16, 0, 0, 0));
         osdLoading = Ui.text(this, "", 13, Ui.BOLD, 0xFFE3E7ED);
         osdLoading.setPadding(px(11), px(5), px(11), px(5));
         osdLoading.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
@@ -260,6 +262,15 @@ public class PlayerActivity extends Activity {
         strip.addView(right, Ui.margins(this, -2, -2, 24, 0, 0, 0));
 
         root.addView(osd, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    /** Dönen yükleme simgesi (beyaz). */
+    private ProgressBar spinner() {
+        ProgressBar p = new ProgressBar(this);
+        p.setIndeterminate(true);
+        p.setIndeterminateTintList(ColorStateList.valueOf(Ui.WHITE));
+        p.setVisibility(View.GONE);
+        return p;
     }
 
     private void addBtn(LinearLayout row, LinearLayout b) {
@@ -397,14 +408,10 @@ public class PlayerActivity extends Activity {
     /** "Açılıyor" işareti; ilk açılışta (donuk kare yokken) ortada da yazı gösterilir. */
     private void updateLoading() {
         boolean loading = state != 1 && state != 2 && errorPanel.getVisibility() != View.VISIBLE;
-        osdLoading.setText(retries > 0 ? "• • •  Yeniden bağlanıyor" : "• • •  Açılıyor");
-        osdLoading.setVisibility(loading ? View.VISIBLE : View.GONE);
-        if (loading && !stream.isFrozen()) {
-            msg.setText(retries > 0 ? "Bağlantı yeniden kuruluyor…" : "Yükleniyor…");
-            msg.setVisibility(View.VISIBLE);
-        } else {
-            msg.setVisibility(View.GONE);
-        }
+        osdLoading.setVisibility(View.GONE);
+        osdSpinner.setVisibility(loading ? View.VISIBLE : View.GONE);
+        // ortadaki büyük simge sadece ekranda donuk kare yokken (ilk açılış)
+        spinner.setVisibility(loading && !stream.isFrozen() ? View.VISIBLE : View.GONE);
         if (state == 2) {
             osdLoading.setText("❚❚  Duraklatıldı");
             osdLoading.setVisibility(View.VISIBLE);
@@ -533,7 +540,8 @@ public class PlayerActivity extends Activity {
     private void showError() {
         errorSince = System.currentTimeMillis();
         stream.stopKeepFrame();
-        msg.setVisibility(View.GONE);
+        spinner.setVisibility(View.GONE);
+        osdSpinner.setVisibility(View.GONE);
         errorText.setText("Bu kanalın yayını şu an açılamıyor.\n"
                 + "Yenile'ye basabilir veya başka kanala geçebilirsin. Bir dakika içinde kendiliğinden tekrar denenecek.");
         osdLoading.setText("Yayın yok");
@@ -671,7 +679,8 @@ public class PlayerActivity extends Activity {
         stream.stop();
         hideZap();
         hideError();
-        msg.setVisibility(View.GONE);
+        spinner.setVisibility(View.GONE);
+        osdSpinner.setVisibility(View.GONE);
         hideOsd();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         sleepText.setText("Uyku modu\nDevam etmek için herhangi bir tuşa bas");
