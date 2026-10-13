@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.PixelCopy;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -235,25 +236,39 @@ final class StreamPlayer {
 
     /** O an ekrandaki kareyi yakalayıp üstte donuk gösterir. */
     private void captureFrame() {
-        if (!hasFrame || Build.VERSION.SDK_INT < 24) return;
+        if (!hasFrame) return;
         View sv = playerView.getVideoSurfaceView();
-        if (!(sv instanceof SurfaceView) || sv.getWidth() <= 0 || sv.getHeight() <= 0) return;
+        if (sv == null || sv.getWidth() <= 0 || sv.getHeight() <= 0) return;
+        if (sv instanceof TextureView) {
+            try {
+                // yarı çözünürlük yeter (geçiş anında kısa süre görünür), bellek dostu
+                Bitmap b = ((TextureView) sv).getBitmap(Math.max(1, sv.getWidth() / 2), Math.max(1, sv.getHeight() / 2));
+                if (b != null) showFrozen(b);
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+        if (!(sv instanceof SurfaceView) || Build.VERSION.SDK_INT < 24) return;
         try {
             final Bitmap b = Bitmap.createBitmap(sv.getWidth(), sv.getHeight(), Bitmap.Config.ARGB_8888);
             PixelCopy.request((SurfaceView) sv, b, result -> {
                 if (result != PixelCopy.SUCCESS || hasFrame) {
-                    b.recycle(); // kopyalanamadı ya da yeni kanal zaten geldi
+                    b.recycle();
                     return;
                 }
-                freeze.animate().cancel();
-                freeze.setImageBitmap(b);
-                if (frozen != null && frozen != b) frozen.recycle();
-                frozen = b;
-                freeze.setAlpha(1f);
-                freeze.setVisibility(View.VISIBLE);
+                showFrozen(b);
             }, ui);
         } catch (Exception ignored) {
         }
+    }
+
+    private void showFrozen(Bitmap b) {
+        freeze.animate().cancel();
+        freeze.setImageBitmap(b);
+        if (frozen != null && frozen != b) frozen.recycle();
+        frozen = b;
+        freeze.setAlpha(1f);
+        freeze.setVisibility(View.VISIBLE);
     }
 
     private void unfreeze() {
@@ -336,6 +351,14 @@ final class StreamPlayer {
         if (pos <= 500) return false;
         shared.seekTo(Math.max(0, pos + ms));
         return true;
+    }
+
+    /** Zaman çizgisi için {oynatma konumu, geri sarılabilir pencere uzunluğu} (ms); bilinmiyorsa null. */
+    long[] timeline() {
+        if (owner != this || shared == null || !shared.isCurrentMediaItemLive()) return null;
+        long dur = shared.getDuration();
+        if (dur == C.TIME_UNSET || dur <= 0) return null;
+        return new long[]{shared.getCurrentPosition(), dur};
     }
 
     void goLive() {

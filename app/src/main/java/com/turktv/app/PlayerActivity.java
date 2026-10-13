@@ -71,6 +71,20 @@ public class PlayerActivity extends Activity {
     private LinearLayout btnFav, btnRefresh, btnSleep, btnList, btnLive;
     private TextView liveBadge;   // "● CANLI" ya da "1:20 geride"
     private long ytBehindSec;     // YouTube'da kendi sarmalarımızdan hesaplanan gerilik
+    // geri sarma görselleri
+    private FrameLayout seekBubble;
+    private ImageView bubbleIcon;
+    private TextView bubbleNum, bubbleLabel;
+    private int seekAccum;        // art arda basışlarda toplam saniye (+ ileri, − geri)
+    private LinearLayout tsRow;   // zaman çizgisi
+    private TextView tsLeft, tsLive;
+    private FrameLayout tsTrack;
+    private View tsFill, tsKnob;
+    private final Runnable hideBubble = () -> {
+        seekAccum = 0;
+        if (seekBubble != null) seekBubble.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).setDuration(220)
+                .setInterpolator(Ui.EASE).withEndAction(() -> seekBubble.setVisibility(View.GONE)).start();
+    };
     private LinearLayout errorPanel;
     private TextView errorText;
     private LinearLayout errRefresh;
@@ -149,6 +163,7 @@ public class PlayerActivity extends Activity {
 
         buildClock(root);
         buildOsd(root);
+        buildSeekBubble(root);
         buildError(root);
         buildZap(root);
         buildSleep(root);
@@ -253,6 +268,38 @@ public class PlayerActivity extends Activity {
         progressBar = bar;
         mid.addView(bar, Ui.margins(this, px(560), px(4), 0, 12, 0, 0));
 
+        tsRow = new LinearLayout(this);
+        tsRow.setOrientation(LinearLayout.HORIZONTAL);
+        tsRow.setGravity(Gravity.CENTER_VERTICAL);
+        tsLeft = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
+        tsLeft.setMinWidth(px(64));
+        tsRow.addView(tsLeft);
+        tsTrack = new FrameLayout(this);
+        tsTrack.setClipChildren(false);
+        View base = new View(this);
+        base.setBackground(Ui.rounded(this, 0x33F2F4F7, 3));
+        FrameLayout.LayoutParams baseLp = new FrameLayout.LayoutParams(-1, px(6), Gravity.CENTER_VERTICAL);
+        tsTrack.addView(base, baseLp);
+        tsFill = new View(this);
+        tsFill.setBackground(Ui.rounded(this, 0xD9F2F4F7, 3));
+        tsTrack.addView(tsFill, new FrameLayout.LayoutParams(0, px(6), Gravity.CENTER_VERTICAL));
+        tsKnob = new View(this);
+        android.graphics.drawable.GradientDrawable kd = new android.graphics.drawable.GradientDrawable();
+        kd.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        kd.setColor(Ui.WHITE);
+        tsKnob.setBackground(kd);
+        tsKnob.setElevation(px(4));
+        tsTrack.addView(tsKnob, new FrameLayout.LayoutParams(px(16), px(16), Gravity.CENTER_VERTICAL));
+        tsRow.addView(tsTrack, Ui.margins(this, 0, px(20), 12, 0, 12, 0));
+        ((LinearLayout.LayoutParams) tsTrack.getLayoutParams()).weight = 1f;
+        tsLive = Ui.text(this, "CANLI", 12, Ui.BOLD, Ui.MUTED);
+        tsLive.setLetterSpacing(0.1f);
+        tsLive.setPadding(px(10), px(4), px(10), px(4));
+        tsLive.setBackground(Ui.rounded(this, 0x24F2F4F7, 10));
+        tsRow.addView(tsLive);
+        tsRow.setVisibility(View.GONE);
+        mid.addView(tsRow, Ui.margins(this, px(620), -2, 0, 14, 0, 0));
+
         // Sağ: butonlar
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
@@ -261,7 +308,14 @@ public class PlayerActivity extends Activity {
         LinearLayout btns = new LinearLayout(this);
         btns.setOrientation(LinearLayout.HORIZONTAL);
         btns.setClipChildren(false);
-        btnLive = Ui.button(this, R.drawable.ic_play, "Canlıya dön", 48, 0x24F2F4F7);
+        btnLive = Ui.button(this, 0, "Canlıya dön", 48, 0x24F2F4F7);
+        for (int i = 0; i < btnLive.getChildCount(); i++) {
+            if (btnLive.getChildAt(i) instanceof TextView) {
+                SpannableString ls = new SpannableString("●  Canlıya dön");
+                ls.setSpan(new ForegroundColorSpan(Ui.LIVE), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ((TextView) btnLive.getChildAt(i)).setText(ls);
+            }
+        }
         btnLive.setOnClickListener(v -> goLive());
         btnLive.setVisibility(View.GONE);
         btns.addView(btnLive);
@@ -298,6 +352,60 @@ public class PlayerActivity extends Activity {
         p.setIndeterminateTintList(ColorStateList.valueOf(Ui.WHITE));
         p.setVisibility(View.GONE);
         return p;
+    }
+
+    /** ◀ ▶ basınca beliren yuvarlak "⟲ 10" göstergesi. */
+    private void buildSeekBubble(FrameLayout root) {
+        seekBubble = new FrameLayout(this);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setGravity(Gravity.CENTER_HORIZONTAL);
+        FrameLayout circle = new FrameLayout(this);
+        android.graphics.drawable.GradientDrawable cd = new android.graphics.drawable.GradientDrawable();
+        cd.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        cd.setColor(0x8C0B0D12);
+        circle.setBackground(cd);
+        bubbleIcon = new ImageView(this);
+        bubbleIcon.setImageResource(R.drawable.ic_rewind);
+        circle.addView(bubbleIcon, new FrameLayout.LayoutParams(px(76), px(76), Gravity.CENTER));
+        bubbleNum = Ui.text(this, "10", 17, Ui.BOLD, Ui.WHITE);
+        bubbleNum.setGravity(Gravity.CENTER);
+        circle.addView(bubbleNum, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        col.addView(circle, new LinearLayout.LayoutParams(px(120), px(120)));
+        bubbleLabel = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
+        bubbleLabel.setShadowLayer(px(6), 0, 0, 0x99000000);
+        col.addView(bubbleLabel, Ui.margins(this, -2, -2, 0, 12, 0, 0));
+        seekBubble.addView(col);
+        seekBubble.setVisibility(View.GONE);
+        root.addView(seekBubble, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_VERTICAL | Gravity.START));
+    }
+
+    private void showBubble(int dir) {
+        if ((dir < 0) != (seekAccum < 0)) seekAccum = 0;
+        seekAccum += dir * 10;
+        int abs = Math.abs(seekAccum);
+        bubbleIcon.setImageResource(dir < 0 ? R.drawable.ic_rewind : R.drawable.ic_forward);
+        bubbleNum.setText(String.valueOf(Math.min(abs, 99)));
+        bubbleLabel.setText(abs >= 60 ? (abs / 60) + " dk " + (abs % 60 > 0 ? (abs % 60) + " sn " : "") + (dir < 0 ? "geri" : "ileri")
+                : abs + " sn " + (dir < 0 ? "geri" : "ileri"));
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) seekBubble.getLayoutParams();
+        lp.gravity = Gravity.CENTER_VERTICAL | (dir < 0 ? Gravity.START : Gravity.END);
+        lp.setMargins(dir < 0 ? px(230) : 0, 0, dir < 0 ? 0 : px(230), px(40));
+        seekBubble.setLayoutParams(lp);
+        ui.removeCallbacks(hideBubble);
+        seekBubble.animate().cancel();
+        if (seekBubble.getVisibility() != View.VISIBLE) {
+            seekBubble.setAlpha(0f);
+            seekBubble.setScaleX(0.85f);
+            seekBubble.setScaleY(0.85f);
+            seekBubble.setVisibility(View.VISIBLE);
+        }
+        seekBubble.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(160).setInterpolator(Ui.EASE).withEndAction(null).start();
+        // basışta küçük bir "nabız"
+        bubbleIcon.setRotation(0);
+        bubbleIcon.animate().rotation(dir < 0 ? -40 : 40).setDuration(180).withEndAction(
+                () -> bubbleIcon.animate().rotation(0).setDuration(180).start()).start();
+        ui.postDelayed(hideBubble, 900);
     }
 
     private void addBtn(LinearLayout row, LinearLayout b) {
@@ -593,6 +701,7 @@ public class PlayerActivity extends Activity {
     /** dir: -1 geri, +1 ileri (10 saniye). */
     private void seek(int dir) {
         showOsd();
+        showBubble(dir);
         if (usingYt) {
             if (dir < 0) {
                 yt.seekBy(-10);
@@ -618,27 +727,51 @@ public class PlayerActivity extends Activity {
         if (osd.hasFocus()) btnList.requestFocus();
     }
 
-    /** Canlı mı, geride mi: isim yanındaki etiketi ve "Canlıya dön" butonunu günceller. */
+    /** Canlı mı, geride mi: etiket, zaman çizgisi ve "Canlıya dön" butonu. */
     private void updateTimeshift() {
         long behind = usingYt ? ytBehindSec * 1000 : stream.behindLiveMs();
         boolean playing = state == 1 || state == 2;
         if (behind < 0 || !playing) {
             liveBadge.setVisibility(View.GONE);
+            tsRow.setVisibility(View.GONE);
             btnLive.setVisibility(View.GONE);
             return;
         }
-        liveBadge.setVisibility(View.VISIBLE);
-        if (behind < 4000) {
+        if (behind < 4000) { // canlı
             SpannableString s = new SpannableString("●  CANLI");
             s.setSpan(new ForegroundColorSpan(Ui.LIVE), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             liveBadge.setText(s);
+            liveBadge.setVisibility(View.VISIBLE);
+            tsRow.setVisibility(View.GONE);
             if (btnLive.hasFocus()) btnList.requestFocus();
             btnLive.setVisibility(View.GONE);
-        } else {
-            long sec = behind / 1000;
-            liveBadge.setText("⏪  " + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60) + " geride");
-            btnLive.setVisibility(View.VISIBLE);
+            return;
         }
+        liveBadge.setVisibility(View.GONE);
+        btnLive.setVisibility(View.VISIBLE);
+        long sec = behind / 1000;
+        tsLeft.setText("−" + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60));
+
+        // oynatma noktasının geri sarılabilir pencere içindeki yeri
+        float frac;
+        long[] tl = usingYt ? null : stream.timeline();
+        if (tl != null) {
+            long liveEdge = Math.max(1, tl[1] - StreamPlayer.LIVE_OFFSET_MS);
+            frac = Math.max(0f, Math.min(1f, tl[0] / (float) liveEdge));
+        } else {
+            long window = Math.max(sec + 60, 300);
+            frac = 1f - sec / (float) window;
+        }
+        if (tsRow.getVisibility() != View.VISIBLE) Ui.fadeIn(tsRow, px(8));
+        final float f = frac;
+        tsTrack.post(() -> {
+            int w = tsTrack.getWidth();
+            if (w <= 0) return;
+            int knob = px(16);
+            tsFill.getLayoutParams().width = (int) (w * f);
+            tsFill.requestLayout();
+            tsKnob.animate().translationX(Math.max(0, w * f - knob / 2f)).setDuration(220).setInterpolator(Ui.EASE).start();
+        });
     }
 
     private void updateHint() {
