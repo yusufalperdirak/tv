@@ -42,7 +42,10 @@ public class WakeService extends Service {
     }
 
     static void launchApp(Context c) {
-        Intent i = new Intent(c, MainActivity.class);
+        // Başlatıcı gibi aç: uygulama zaten açıksa olduğu yerden öne gelir, değilse açılış ekranından başlar
+        Intent i = c.getPackageManager().getLeanbackLaunchIntentForPackage(c.getPackageName());
+        if (i == null) i = c.getPackageManager().getLaunchIntentForPackage(c.getPackageName());
+        if (i == null) i = new Intent(c, SplashActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         try {
             c.startActivity(i);
@@ -64,7 +67,7 @@ public class WakeService extends Service {
         } else {
             b = new Notification.Builder(this);
         }
-        Notification n = b.setSmallIcon(R.drawable.ic_play)
+        Notification n = b.setSmallIcon(R.drawable.ic_tv)
                 .setContentTitle("TV")
                 .setContentText("TV açılınca otomatik başlatma etkin")
                 .setOngoing(true)

@@ -2,8 +2,6 @@ package com.turktv.app;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -18,14 +16,20 @@ import androidx.media3.ui.PlayerView;
 import java.util.HashMap;
 import java.util.Map;
 
-/** M3U listesindeki yayın adreslerini oynatan yerel oynatıcı (ExoPlayer). */
+/** Kanal yayınlarını oynatan video oynatıcı (ExoPlayer). */
 final class StreamPlayer {
+
+    interface Listener {
+        /** 0 bitti, 1 oynuyor, 2 duraklatıldı, 3 yükleniyor */
+        void onState(int state);
+
+        void onError();
+    }
 
     final PlayerView view;
     private final Context ctx;
-    private final Handler ui = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
-    private YtPlayer.Listener listener;
+    private Listener listener;
     private int token;
 
     StreamPlayer(Context c) {
@@ -40,30 +44,30 @@ final class StreamPlayer {
         view.setFocusableInTouchMode(false);
     }
 
-    void setListener(YtPlayer.Listener l) {
+    void setListener(Listener l) {
         listener = l;
     }
 
-    void play(Playlist.Entry e, boolean muted) {
+    void play(Channel c, boolean muted) {
         stop();
         final int t = ++token;
 
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
-                .setUserAgent(e.ua != null ? e.ua : Playlist.DEFAULT_UA)
+                .setUserAgent(c.ua != null ? c.ua : Health.DEFAULT_UA)
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(10000)
                 .setReadTimeoutMs(15000);
-        if (e.referer != null) {
+        if (c.referer != null) {
             Map<String, String> h = new HashMap<>();
-            h.put("Referer", e.referer);
+            h.put("Referer", c.referer);
             http.setDefaultRequestProperties(h);
         }
 
         player = new ExoPlayer.Builder(ctx)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(http))
                 .build();
-        MediaItem.Builder item = new MediaItem.Builder().setUri(e.url);
-        if (e.url.toLowerCase(Actions.TR).contains("m3u8")) item.setMimeType(MimeTypes.APPLICATION_M3U8);
+        MediaItem.Builder item = new MediaItem.Builder().setUri(c.url);
+        if (c.url.toLowerCase(Actions.TR).contains("m3u8")) item.setMimeType(MimeTypes.APPLICATION_M3U8);
         player.setMediaItem(item.build());
         player.setVolume(muted ? 0f : 1f);
         player.addListener(new Player.Listener() {
@@ -90,7 +94,7 @@ final class StreamPlayer {
                     player.prepare();
                     return;
                 }
-                if (listener != null) listener.onError(-1);
+                if (listener != null) listener.onError();
             }
         });
         view.setPlayer(player);

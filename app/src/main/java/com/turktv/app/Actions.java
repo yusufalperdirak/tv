@@ -19,34 +19,6 @@ final class Actions {
     static final Locale TR = new Locale("tr", "TR");
     private static final TimeZone TR_ZONE = TimeZone.getTimeZone("Europe/Istanbul");
 
-    /** Kanalın canlı yayınını YouTube uygulamasında açar. */
-    static void openYoutube(Activity a, Channel c) {
-        Uri uri = Uri.parse("https://www.youtube.com/" + c.youtube + "/live");
-        Intent i = new Intent(Intent.ACTION_VIEW, uri);
-        i.setPackage("com.google.android.youtube.tv");
-        try {
-            a.startActivity(i);
-            return;
-        } catch (ActivityNotFoundException ignored) {
-        }
-        i.setPackage(null);
-        try {
-            a.startActivity(i);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(a, "YouTube uygulaması bulunamadı", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /** Kanalın resmi uygulamasını Play Store'da arar. */
-    static void openAppStore(Activity a, Channel c) {
-        try {
-            a.startActivity(new Intent(Intent.ACTION_VIEW,
-                    Uri.parse("market://search?q=" + Uri.encode(c.appQuery))));
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(a, "Play Store bulunamadı", Toast.LENGTH_LONG).show();
-        }
-    }
-
     /** Otomatik açılış için "diğer uygulamaların üzerinde göster" iznini ister. */
     static void requestOverlay(Activity a) {
         try {

@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -40,18 +41,14 @@ public class MainActivity extends Activity {
     private String mode = MODE_ALL;
     private boolean builtHideOffline;
     private boolean resumed;
-    private int previewToken;
 
-    // kanal -> kutucuk
     private final Map<Channel, LinearLayout> tiles = new HashMap<>();
     private final Map<Channel, TextView> pills = new HashMap<>();
     private final Map<String, TextView> chips = new HashMap<>();
 
     private LinearLayout railHome, railFav;
     private TextView clockLocal, clockTr, dateText;
-    private YtPlayer preview;
-    private StreamPlayer streamPreview;
-    private int builtPlaylistVersion;
+    private StreamPlayer preview;
     private TextView previewMsg, liveBadge, soundBadge;
     private TextView infoStatus, infoNum, infoName;
     private LinearLayout btnFav;
@@ -65,20 +62,17 @@ public class MainActivity extends Activity {
             ui.postDelayed(this, 15000);
         }
     };
-
     private final Runnable previewRunnable = this::startPreview;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         channels = Channel.loadAll(this);
-        Playlist.ensureLoaded(this);
-        builtPlaylistVersion = Playlist.version();
         selected = channels.get(clamp(Prefs.last(this)));
 
         buildUi();
         setMode(MODE_ALL);
-        Live.checkAll(channels, (c, id) -> onStatus(c));
+        Health.checkAll(channels, this::onStatus);
 
         if (Prefs.autostart(this)) WakeService.start(this);
 
@@ -89,9 +83,6 @@ public class MainActivity extends Activity {
                     recreate();
                 }
             });
-            Playlist.refresh(this, channels, (changed, err) -> {
-                if (changed && !isFinishing()) recreate();
-            });
             if (Prefs.openLast(this)) openChannel(selected);
         }
     }
@@ -100,11 +91,11 @@ public class MainActivity extends Activity {
         return Math.max(0, Math.min(i, channels.size() - 1));
     }
 
-    // ------------------------------------------------------------------ arayüz
-
     private int px(float v) {
         return Ui.px(this, v);
     }
+
+    // ------------------------------------------------------------------ arayüz
 
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
@@ -121,9 +112,8 @@ public class MainActivity extends Activity {
 
         FrameLayout logo = new FrameLayout(this);
         logo.setBackground(Ui.rounded(this, Ui.ACCENT, 12));
-        ImageView logoIcon = Ui.icon(this, R.drawable.ic_play, 18, Ui.WHITE);
-        logo.addView(logoIcon, new FrameLayout.LayoutParams(px(18), px(18), Gravity.CENTER));
-        rail.addView(logo, Ui.margins(this, px(42), px(42), 0, 0, 0, 34));
+        logo.addView(Ui.icon(this, R.drawable.ic_tv, 24, Ui.WHITE), new FrameLayout.LayoutParams(px(24), px(24), Gravity.CENTER));
+        rail.addView(logo, Ui.margins(this, px(44), px(44), 0, 0, 0, 34));
 
         railHome = railButton(R.drawable.ic_home);
         railHome.setOnClickListener(v -> setMode(MODE_ALL));
@@ -148,7 +138,6 @@ public class MainActivity extends Activity {
         content.setClipToPadding(false);
         root.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        // Başlık ve saat
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.BOTTOM);
@@ -173,14 +162,12 @@ public class MainActivity extends Activity {
         pvBg.setStroke(Math.max(1, px(1)), 0xFF262D3A);
         pv.setBackground(pvBg);
         pv.setClipToOutline(true);
-        preview = new YtPlayer(this);
-        pv.addView(preview.web, new FrameLayout.LayoutParams(-1, -1));
-        streamPreview = new StreamPlayer(this);
-        streamPreview.view.setVisibility(View.GONE);
-        pv.addView(streamPreview.view, new FrameLayout.LayoutParams(-1, -1));
+        preview = new StreamPlayer(this);
+        pv.addView(preview.view, new FrameLayout.LayoutParams(-1, -1));
         previewMsg = Ui.text(this, "", 13, Ui.REGULAR, 0xFF8892A3);
         previewMsg.setGravity(Gravity.CENTER);
         previewMsg.setBackgroundColor(0xFF161B24);
+        previewMsg.setLineSpacing(px(4), 1f);
         pv.addView(previewMsg, new FrameLayout.LayoutParams(-1, -1));
         liveBadge = Ui.text(this, "● CANLI", 11, Ui.BOLD, Ui.WHITE);
         liveBadge.setLetterSpacing(0.08f);
@@ -197,24 +184,26 @@ public class MainActivity extends Activity {
         pv.addView(soundBadge, sbLp);
         hero.addView(pv, new LinearLayout.LayoutParams(px(384), px(216)));
 
-        YtPlayer.Listener previewListener = new YtPlayer.Listener() {
+        preview.setListener(new StreamPlayer.Listener() {
             @Override
             public void onState(int state) {
                 if (state == 1) {
                     previewMsg.setVisibility(View.GONE);
                     liveBadge.setVisibility(View.VISIBLE);
+                    Health.report(selected, true);
+                    onStatus(selected);
                 }
             }
 
             @Override
-            public void onError(int code) {
-                previewMsg.setText("Önizleme bu kanalda açılamıyor\nTam ekranda veya YouTube'da deneyin");
+            public void onError() {
+                previewMsg.setText("Yayın şu an açılamıyor\nYenile'ye basabilirsin");
                 previewMsg.setVisibility(View.VISIBLE);
                 liveBadge.setVisibility(View.GONE);
+                Health.report(selected, false);
+                onStatus(selected);
             }
-        };
-        preview.setListener(previewListener);
-        streamPreview.setListener(previewListener);
+        });
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -231,7 +220,7 @@ public class MainActivity extends Activity {
         nameRow.setGravity(Gravity.BOTTOM);
         infoNum = Ui.text(this, "", 26, Ui.MEDIUM, Ui.MUTED);
         nameRow.addView(infoNum, Ui.margins(this, -2, -2, 0, 0, 16, 4));
-        infoName = Ui.text(this, "", 46, Ui.BOLD, Ui.TEXT);
+        infoName = Ui.text(this, "", 44, Ui.BOLD, Ui.TEXT);
         infoName.setSingleLine(true);
         infoName.setEllipsize(TextUtils.TruncateAt.END);
         nameRow.addView(infoName);
@@ -244,17 +233,17 @@ public class MainActivity extends Activity {
         LinearLayout btnWatch = Ui.button(this, R.drawable.ic_play, "Tam ekran izle", 50, Ui.SURFACE2);
         btnWatch.setOnClickListener(v -> openChannel(selected));
         btnRow.addView(btnWatch);
-        LinearLayout btnYt = Ui.button(this, R.drawable.ic_youtube, "YouTube'da aç", 50, Ui.SURFACE2);
-        btnYt.setOnClickListener(v -> {
-            Prefs.last(this, selected.index);
-            Actions.openYoutube(this, selected);
+        LinearLayout btnRefresh = Ui.button(this, R.drawable.ic_refresh, "Yenile", 50, Ui.SURFACE2);
+        btnRefresh.setOnClickListener(v -> {
+            Toast.makeText(this, selected.name + " yenileniyor", Toast.LENGTH_SHORT).show();
+            schedulePreview();
         });
-        ((LinearLayout.LayoutParams) btnYt.getLayoutParams()).setMargins(px(12), 0, 0, 0);
-        btnRow.addView(btnYt);
+        ((LinearLayout.LayoutParams) btnRefresh.getLayoutParams()).setMargins(px(12), 0, 0, 0);
+        btnRow.addView(btnRefresh);
         btnFav = Ui.button(this, R.drawable.ic_heart, null, 50, Ui.SURFACE2);
         btnFav.setOnClickListener(v -> {
             boolean now = Prefs.toggleFavorite(this, selected);
-            Toast.makeText(this, now ? selected.name + " favorilere eklendi" : selected.name + " favorilerden çıkarıldı",
+            Toast.makeText(this, selected.name + (now ? " favorilere eklendi" : " favorilerden çıkarıldı"),
                     Toast.LENGTH_SHORT).show();
             updateInfo();
             if (MODE_FAV.equals(mode)) setMode(MODE_FAV);
@@ -262,19 +251,25 @@ public class MainActivity extends Activity {
         ((LinearLayout.LayoutParams) btnFav.getLayoutParams()).setMargins(px(12), 0, 0, 0);
         btnRow.addView(btnFav);
 
-        TextView hint = Ui.text(this, "Kanalların üzerinde gezdikçe önizleme değişir  ·  OK: tam ekran", 13, Ui.REGULAR, Ui.MUTED);
-        info.addView(hint, Ui.margins(this, -2, -2, 0, 14, 0, 0));
+        info.addView(Ui.text(this, "Kanalların üzerinde gezdikçe önizleme değişir  ·  OK: tam ekran  ·  ♥: favori",
+                13, Ui.REGULAR, Ui.MUTED), Ui.margins(this, -2, -2, 0, 14, 0, 0));
 
-        // Kategori sekmeleri
+        // Kategori sekmeleri (yatay kaydırmalı)
+        HorizontalScrollView chipScroll = new HorizontalScrollView(this);
+        chipScroll.setHorizontalScrollBarEnabled(false);
+        chipScroll.setClipChildren(false);
+        chipScroll.setClipToPadding(false);
         LinearLayout chipRow = new LinearLayout(this);
         chipRow.setOrientation(LinearLayout.HORIZONTAL);
         chipRow.setClipChildren(false);
-        content.addView(chipRow, Ui.margins(this, -1, -2, 0, 22, 0, 0));
+        chipRow.setPadding(px(4), px(4), px(4), px(4));
+        chipScroll.addView(chipRow);
+        content.addView(chipScroll, Ui.margins(this, -1, -2, -4, 18, -4, 0));
         List<String> modes = new ArrayList<>();
         modes.add(MODE_ALL);
         modes.addAll(Channel.categories(channels));
         for (String m : modes) {
-            TextView chip = chip(MODE_ALL.equals(m) ? "Tümü" : m, m);
+            TextView chip = chip(MODE_ALL.equals(m) ? "Tümü (" + channels.size() + ")" : m, m);
             chipRow.addView(chip);
             chips.put(m, chip);
         }
@@ -288,9 +283,9 @@ public class MainActivity extends Activity {
         sections.setOrientation(LinearLayout.VERTICAL);
         sections.setClipChildren(false);
         sections.setClipToPadding(false);
-        sections.setPadding(px(6), px(8), px(6), px(48));
+        sections.setPadding(px(6), px(4), px(6), px(48));
         sectionScroll.addView(sections);
-        content.addView(sectionScroll, Ui.margins(this, -1, 0, -6, 8, -6, 0));
+        content.addView(sectionScroll, Ui.margins(this, -1, 0, -6, 6, -6, 0));
         ((LinearLayout.LayoutParams) sectionScroll.getLayoutParams()).weight = 1f;
 
         setContentView(root);
@@ -367,7 +362,7 @@ public class MainActivity extends Activity {
             for (Channel c : channels) if (Prefs.isFavorite(this, c)) favs.add(c);
             if (favs.isEmpty()) {
                 TextView empty = Ui.text(this,
-                        "Henüz favori kanal yok.\nBir kanal seçip ♥ butonuna basarak ekleyebilirsin.",
+                        "Henüz favori kanal yok.\nBir kanalı seçip ♥ butonuna basarak ekleyebilirsin.",
                         18, Ui.REGULAR, Ui.MUTED);
                 empty.setLineSpacing(px(6), 1f);
                 sections.addView(empty, Ui.margins(this, -2, -2, 0, 24, 0, 0));
@@ -387,8 +382,8 @@ public class MainActivity extends Activity {
     }
 
     private void addSection(String title, List<Channel> list) {
-        TextView h = Ui.text(this, title, 20, Ui.MEDIUM, Ui.TEXT);
-        sections.addView(h, Ui.margins(this, -2, -2, 0, 10, 0, 12));
+        TextView h = Ui.text(this, title + "  ·  " + list.size(), 20, Ui.MEDIUM, Ui.TEXT);
+        sections.addView(h, Ui.margins(this, -2, -2, 0, 12, 0, 12));
 
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(6);
@@ -396,15 +391,14 @@ public class MainActivity extends Activity {
         grid.setClipToPadding(false);
         sections.addView(grid);
 
-        int avail = px(1112);
         int gap = px(16);
-        int w = (avail - 5 * gap) / 6;
+        int w = (px(1112) - 5 * gap) / 6;
         int col = 0;
         for (Channel c : list) {
             LinearLayout tile = makeTile(c);
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
             lp.width = w;
-            lp.height = px(92);
+            lp.height = px(112);
             lp.setMargins(0, 0, (col % 6 == 5) ? 0 : gap, gap);
             grid.addView(tile, lp);
             tiles.put(c, tile);
@@ -418,35 +412,50 @@ public class MainActivity extends Activity {
         tile.setOrientation(LinearLayout.VERTICAL);
         tile.setFocusable(true);
         tile.setClickable(true);
-        tile.setPadding(px(14), px(12), px(14), px(12));
+        tile.setPadding(px(12), px(10), px(12), px(10));
         GradientDrawable bg = Ui.rounded(this, c.color, 16);
         tile.setBackground(bg);
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        TextView num = Ui.text(this, String.valueOf(c.number), 15, Ui.MEDIUM, 0xCCFFFFFF);
-        top.addView(num);
+        top.addView(Ui.text(this, String.valueOf(c.number), 14, Ui.MEDIUM, 0xCCFFFFFF));
         top.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        TextView pill = Ui.text(this, "", 12, Ui.BOLD, Ui.WHITE);
-        pill.setPadding(px(8), px(4), px(8), px(4));
-        pill.setBackground(Ui.rounded(this, 0x59000000, 10));
+        TextView pill = Ui.text(this, "", 11, Ui.BOLD, Ui.WHITE);
+        pill.setPadding(px(7), px(3), px(7), px(3));
+        pill.setBackground(Ui.rounded(this, 0x59000000, 9));
         top.addView(pill);
         pills.put(c, pill);
         tile.addView(top);
 
-        tile.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
-        TextView name = Ui.text(this, c.name, 20, Ui.BOLD, Ui.WHITE);
-        name.setMaxLines(2);
+        // Logo açık zemin üzerinde (koyu logolar da okunsun); logo yoksa kanal adı büyük yazılır
+        FrameLayout mid = new FrameLayout(this);
+        TextView bigName = Ui.text(this, c.name, 18, Ui.BOLD, Ui.WHITE);
+        bigName.setGravity(Gravity.CENTER);
+        bigName.setMaxLines(2);
+        bigName.setEllipsize(TextUtils.TruncateAt.END);
+        mid.addView(bigName, new FrameLayout.LayoutParams(-1, -1));
+        ImageView logo = new ImageView(this);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logo.setPadding(px(10), px(4), px(10), px(4));
+        logo.setBackground(Ui.rounded(this, 0xF2F2F4F7, 10));
+        mid.addView(logo, new FrameLayout.LayoutParams(-1, -1));
+        tile.addView(mid, Ui.margins(this, -1, 0, 0, 6, 0, 6));
+        ((LinearLayout.LayoutParams) mid.getLayoutParams()).weight = 1f;
+
+        TextView name = Ui.text(this, c.name, 13, Ui.BOLD, Ui.WHITE);
+        name.setSingleLine(true);
         name.setEllipsize(TextUtils.TruncateAt.END);
         tile.addView(name);
+        Logos.into(this, c.logo, logo, bigName);
+        name.setVisibility(c.logo.isEmpty() ? View.GONE : View.VISIBLE);
 
         tile.setOnFocusChangeListener((v, has) -> {
             float s = has ? 1.07f : 1f;
             v.animate().scaleX(s).scaleY(s).setDuration(120).start();
             bg.setStroke(has ? px(3) : 0, Ui.WHITE);
             v.setElevation(has ? px(12) : 0);
-            v.setAlpha(has || Live.status(c) != Live.OFFLINE ? 1f : 0.55f);
+            v.setAlpha(has || Health.status(c) != Health.OFFLINE ? 1f : 0.5f);
             if (has) select(c);
         });
         tile.setOnClickListener(v -> openChannel(c));
@@ -457,21 +466,21 @@ public class MainActivity extends Activity {
         LinearLayout tile = tiles.get(c);
         TextView pill = pills.get(c);
         if (tile == null || pill == null) return;
-        int st = Live.status(c);
+        int st = Health.status(c);
         pill.setText(statusText(st, false));
-        tile.setAlpha(tile.hasFocus() || st != Live.OFFLINE ? 1f : 0.55f);
-        boolean hide = builtHideOffline && st == Live.OFFLINE && !tile.hasFocus();
+        tile.setAlpha(tile.hasFocus() || st != Health.OFFLINE ? 1f : 0.5f);
+        boolean hide = builtHideOffline && st == Health.OFFLINE && !tile.hasFocus();
         tile.setVisibility(hide ? View.GONE : View.VISIBLE);
     }
 
     private CharSequence statusText(int st, boolean longForm) {
         String label;
         int dot;
-        if (st == Live.LIVE) {
-            label = longForm ? "Şu an canlı" : "Canlı";
+        if (st == Health.LIVE) {
+            label = longForm ? "Yayında" : "Canlı";
             dot = Ui.LIVE;
-        } else if (st == Live.OFFLINE) {
-            label = longForm ? "Şu an canlı yayın yok" : "Yayın yok";
+        } else if (st == Health.OFFLINE) {
+            label = longForm ? "Yayına şu an ulaşılamıyor" : "Kapalı";
             dot = Ui.OFF;
         } else {
             label = longForm ? "Kontrol ediliyor" : "…";
@@ -499,8 +508,7 @@ public class MainActivity extends Activity {
         Channel c = selected;
         infoNum.setText(String.valueOf(c.number));
         infoName.setText(c.name);
-        CharSequence st = statusText(Live.status(c), true);
-        infoStatus.setText(TextUtils.concat(st, "  ·  " + c.category));
+        infoStatus.setText(TextUtils.concat(statusText(Health.status(c), true), "  ·  " + c.category));
         Ui.setButtonIcon(btnFav, Prefs.isFavorite(this, c) ? R.drawable.ic_heart_fill : R.drawable.ic_heart);
         soundBadge.setText(Prefs.previewSound(this) ? "Sesli" : "Sessiz");
     }
@@ -517,9 +525,7 @@ public class MainActivity extends Activity {
 
     private void schedulePreview() {
         ui.removeCallbacks(previewRunnable);
-        previewToken++;
         preview.stop();
-        streamPreview.stop();
         liveBadge.setVisibility(View.GONE);
         previewMsg.setText("Önizleme yükleniyor…");
         previewMsg.setVisibility(View.VISIBLE);
@@ -527,35 +533,14 @@ public class MainActivity extends Activity {
     }
 
     private void startPreview() {
-        final Channel c = selected;
-        final int t = ++previewToken;
-        if (Playlist.has(c)) {
-            preview.web.setVisibility(View.GONE);
-            streamPreview.view.setVisibility(View.VISIBLE);
-            streamPreview.play(Playlist.entries(c).get(0), !Prefs.previewSound(this));
-            return;
-        }
-        streamPreview.view.setVisibility(View.GONE);
-        preview.web.setVisibility(View.VISIBLE);
-        Live.find(c, false, (ch, id) -> {
-            if (t != previewToken || !resumed) return;
-            onStatus(ch);
-            if (id == null) {
-                previewMsg.setText("Şu an canlı yayın yok");
-            } else {
-                preview.play(id, !Prefs.previewSound(this));
-            }
-        });
+        if (!resumed) return;
+        preview.play(selected, !Prefs.previewSound(this));
     }
 
     // ------------------------------------------------------------------ gezinme
 
     private void openChannel(Channel c) {
         Prefs.last(this, c.index);
-        if (Prefs.useYoutube(this)) {
-            Actions.openYoutube(this, c);
-            return;
-        }
         Intent i = new Intent(this, PlayerActivity.class);
         i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
         startActivity(i);
@@ -578,7 +563,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (Channel.loadAll(this) != channels || Playlist.version() != builtPlaylistVersion) { // liste güncellendi
+        if (Channel.loadAll(this) != channels) { // kanal listesi güncellendi
             recreate();
             return;
         }
@@ -604,16 +589,13 @@ public class MainActivity extends Activity {
         resumed = false;
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(clockTick);
-        previewToken++;
         preview.stop();
-        streamPreview.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
-        preview.destroy();
-        streamPreview.release();
+        preview.release();
         super.onDestroy();
     }
 }

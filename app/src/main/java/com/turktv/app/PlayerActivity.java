@@ -23,14 +23,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tam ekran izleme: uygulama içi YouTube oynatıcısı, kanal bilgisi, hızlı kanal listesi,
+ * Tam ekran izleme: video oynatıcı, kanal bilgisi, hızlı kanal listesi,
  * otomatik yeniden bağlanma ve uyku zamanlayıcısı.
  */
 public class PlayerActivity extends Activity {
 
     public static final String EXTRA_INDEX = "index";
 
-    private static final int ERR_OFFLINE = 1, ERR_EMBED = 2, ERR_FAILED = 3;
+    private static final int ERR_FAILED = 3;
     private static final long STALL_MS = 20000;   // bu kadar süre görüntü gelmezse yeniden bağlan
     private static final long RECHECK_MS = 60000; // yayın yoksa bu aralıkla tekrar kontrol et
     private static final int MAX_RETRIES = 3;
@@ -40,12 +40,7 @@ public class PlayerActivity extends Activity {
     private int index;
 
     // oynatma durumu
-    private YtPlayer player;
     private StreamPlayer stream;
-    private boolean usingStream; // şu an kendi M3U listenden mi oynuyor
-    private int candIdx;         // listedeki kaçıncı adres deneniyor
-    private int candTries;       // aynı adres için yeniden deneme sayısı
-    private int resolveToken;
     private int state = -1;
     private long stateSince;
     private boolean userPaused;
@@ -64,7 +59,7 @@ public class PlayerActivity extends Activity {
     private LinearLayout btnFav, btnSleep, btnList;
     private LinearLayout errorPanel;
     private TextView errorText;
-    private LinearLayout errYoutube, errApp;
+    private LinearLayout errRefresh;
     private FrameLayout zapPanel;
     private TextView zapTitle, zapCount;
     private LinearLayout zapList;
@@ -100,25 +95,19 @@ public class PlayerActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
-        Playlist.ensureLoaded(this);
-        player = new YtPlayer(this);
-        root.addView(player.web, new FrameLayout.LayoutParams(-1, -1));
         stream = new StreamPlayer(this);
-        stream.view.setVisibility(View.GONE);
         root.addView(stream.view, new FrameLayout.LayoutParams(-1, -1));
-        YtPlayer.Listener listener = new YtPlayer.Listener() {
+        stream.setListener(new StreamPlayer.Listener() {
             @Override
             public void onState(int s) {
                 onPlayerState(s);
             }
 
             @Override
-            public void onError(int code) {
-                onPlayerError(code);
+            public void onError() {
+                onPlayerError();
             }
-        };
-        player.setListener(listener);
-        stream.setListener(listener);
+        });
 
         sink = new View(this);
         sink.setFocusable(true);
@@ -217,9 +206,9 @@ public class PlayerActivity extends Activity {
         btnSleep = Ui.button(this, R.drawable.ic_moon, "Uyku", 54, Ui.SCRIM);
         btnSleep.setOnClickListener(v -> cycleSleep());
         addBarButton(btnSleep);
-        LinearLayout btnYt = Ui.button(this, R.drawable.ic_youtube, "YouTube'da aç", 54, Ui.SCRIM);
-        btnYt.setOnClickListener(v -> Actions.openYoutube(this, cur()));
-        addBarButton(btnYt);
+        LinearLayout btnRefresh = Ui.button(this, R.drawable.ic_refresh, "Yenile", 54, Ui.SCRIM);
+        btnRefresh.setOnClickListener(v -> refresh());
+        addBarButton(btnRefresh);
         btnList = Ui.button(this, R.drawable.ic_list, "Kanal listesi", 54, Ui.SCRIM);
         btnList.setOnClickListener(v -> showZap());
         addBarButton(btnList);
@@ -270,13 +259,9 @@ public class PlayerActivity extends Activity {
         buttons.setClipChildren(false);
         errorPanel.addView(buttons, Ui.margins(this, -2, -2, 0, 24, 0, 0));
 
-        errYoutube = Ui.button(this, R.drawable.ic_youtube, "YouTube'da aç", 50, Ui.SURFACE2);
-        errYoutube.setOnClickListener(v -> Actions.openYoutube(this, cur()));
-        buttons.addView(errYoutube);
-        errApp = Ui.button(this, 0, "Resmi uygulama", 50, Ui.SURFACE2);
-        errApp.setOnClickListener(v -> Actions.openAppStore(this, cur()));
-        buttons.addView(errApp);
-        ((LinearLayout.LayoutParams) errApp.getLayoutParams()).setMargins(px(12), 0, 0, 0);
+        errRefresh = Ui.button(this, R.drawable.ic_refresh, "Yenile", 50, Ui.SURFACE2);
+        errRefresh.setOnClickListener(v -> refresh());
+        buttons.addView(errRefresh);
         LinearLayout errNext = Ui.button(this, 0, "Sonraki kanal ▲", 50, Ui.SURFACE2);
         errNext.setOnClickListener(v -> changeChannel(index + 1));
         buttons.addView(errNext);
@@ -365,49 +350,25 @@ public class PlayerActivity extends Activity {
     /** Kullanıcının kanal değiştirmesi. */
     private void changeChannel(int i) {
         retries = 0;
-        candIdx = 0;
-        candTries = 0;
-        playChannel(i, false);
+        playChannel(i);
     }
 
-    private void playChannel(int i, boolean force) {
+    /** Yenile tuşu: aynı kanalı baştan aç. */
+    private void refresh() {
+        Toast.makeText(this, cur().name + " yenileniyor", Toast.LENGTH_SHORT).show();
+        changeChannel(index);
+    }
+
+    private void playChannel(int i) {
         index = wrap(i);
         Prefs.last(this, index);
-        final Channel c = cur();
-        final int t = ++resolveToken;
-
         hideError();
-        player.stop();
-        stream.stop();
         userPaused = false;
         setState(-1);
-
-        // 1) Kendi M3U listende bu kanal varsa oradan oynat
-        final List<Playlist.Entry> cands = Playlist.entries(c);
-        usingStream = candIdx < cands.size();
+        showMsg(retries > 0 ? "Bağlantı yeniden kuruluyor… (" + retries + "/" + MAX_RETRIES + ")" : "Yükleniyor…");
         updateOsd();
         showOsd();
-        if (usingStream) {
-            showMsg(candIdx > 0 || candTries > 0 ? "Bağlantı yeniden kuruluyor…" : "Yükleniyor…");
-            player.web.setVisibility(View.GONE);
-            stream.view.setVisibility(View.VISIBLE);
-            stream.play(cands.get(candIdx), false);
-            return;
-        }
-
-        // 2) Yoksa (veya listedeki adresler çalışmadıysa) YouTube
-        stream.view.setVisibility(View.GONE);
-        player.web.setVisibility(View.VISIBLE);
-        showMsg(retries > 0 ? "Bağlantı yeniden kuruluyor… (" + retries + "/" + MAX_RETRIES + ")" : "Canlı yayın aranıyor…");
-        Live.find(c, force, (ch, id) -> {
-            if (t != resolveToken || stopped) return;
-            if (id == null) {
-                showError(cands.isEmpty() ? ERR_OFFLINE : ERR_FAILED);
-            } else {
-                setState(-1);
-                player.play(id, false);
-            }
-        });
+        stream.play(cur(), false);
     }
 
     private void setState(int s) {
@@ -420,6 +381,7 @@ public class PlayerActivity extends Activity {
         if (s == 1) {
             userPaused = false;
             retries = 0;
+            Health.report(cur(), true);
             hideMsg();
             osdLive.setText("● CANLI");
         } else if (s == 2) {
@@ -431,34 +393,20 @@ public class PlayerActivity extends Activity {
         }
     }
 
-    private void onPlayerError(int code) {
-        if (code == 101 || code == 150 || code == 152 || code == 153) {
-            showError(ERR_EMBED);
-        } else {
-            reconnect();
-        }
+    private void onPlayerError() {
+        reconnect();
     }
 
-    /** Otomatik yeniden bağlanma. */
+    /** Otomatik yeniden bağlanma: birkaç kez dener, olmazsa Yenile ekranını gösterir. */
     private void reconnect() {
         if (stopped || sleeping) return;
-        if (usingStream) {
-            // önce aynı adresi bir kez daha dene, sonra listedeki yedek adrese, en son YouTube'a geç
-            if (candTries < 1) {
-                candTries++;
-            } else {
-                candTries = 0;
-                candIdx++;
-            }
-            playChannel(index, false);
-            return;
-        }
         retries++;
         if (retries > MAX_RETRIES) {
+            Health.report(cur(), false);
             showError(ERR_FAILED);
             return;
         }
-        playChannel(index, true);
+        playChannel(index);
     }
 
     private void onTick() {
@@ -472,16 +420,9 @@ public class PlayerActivity extends Activity {
                 reconnect();
             }
             // Yayın yoksa veya bağlanamadıysa: arada bir tekrar dene, gelince otomatik aç
-            if (errorShown && errorKind != ERR_EMBED && now - errorSince > RECHECK_MS) {
+            if (errorShown && now - errorSince > RECHECK_MS) {
                 errorSince = now;
-                final int t = resolveToken;
-                if (Playlist.has(cur())) {
-                    changeChannel(index); // listedeki adresleri baştan dene
-                } else Live.find(cur(), true, (ch, id) -> {
-                    if (id != null && t == resolveToken && !stopped && errorPanel.getVisibility() == View.VISIBLE) {
-                        changeChannel(index);
-                    }
-                });
+                changeChannel(index); // arada bir kendiliğinden tekrar dene
             }
         }
 
@@ -513,25 +454,17 @@ public class PlayerActivity extends Activity {
     private void showError(int kind) {
         errorKind = kind;
         errorSince = System.currentTimeMillis();
-        player.stop();
         stream.stop();
         hideMsg();
-        String text;
-        if (kind == ERR_EMBED) {
-            text = "Kanal bu yayının başka uygulamalarda oynatılmasına izin vermiyor.\nYouTube uygulamasında açabilirsin.";
-        } else if (kind == ERR_FAILED) {
-            text = "Yayına bağlanılamadı. İnternet bağlantını kontrol et.\nBirazdan otomatik olarak tekrar denenecek.";
-        } else {
-            text = "Bu kanal şu an YouTube'da canlı yayın yapmıyor ya da yayını bölgene kapalı.\nYayın başlarsa otomatik açılacak.";
-        }
+        String text = "Bu kanalın yayını şu an açılamıyor.\n"
+                + "Yenile'ye basabilir veya başka kanala geçebilirsin. Bir dakika içinde kendiliğinden tekrar denenecek.";
         errorText.setText(text);
-        errApp.setVisibility(cur().appQuery.isEmpty() ? View.GONE : View.VISIBLE);
         osdLive.setText("YAYIN YOK");
         errorPanel.setVisibility(View.VISIBLE);
         ui.removeCallbacks(hideOsd);
         osdTop.setVisibility(View.VISIBLE);
         bottomBar.setVisibility(View.GONE);
-        errYoutube.requestFocus();
+        errRefresh.requestFocus();
     }
 
     private void hideError() {
@@ -547,7 +480,7 @@ public class PlayerActivity extends Activity {
         osdNum.setBackground(Ui.rounded(this, c.color, 16));
         osdName.setText(c.name);
         osdLive.setText("● CANLI");
-        osdSub.setText(c.category + (usingStream ? "  ·  Kendi listen" : "  ·  YouTube"));
+        osdSub.setText(c.category);
         Channel next = channels.get(wrap(index + 1));
         Channel prev = channels.get(wrap(index - 1));
         nextLabel.setText(next.number + " · " + next.name);
@@ -626,7 +559,7 @@ public class PlayerActivity extends Activity {
 
     private View zapRow(final Channel c) {
         final boolean current = c.index == index;
-        final boolean offline = Live.status(c) == Live.OFFLINE;
+        final boolean offline = Health.status(c) == Health.OFFLINE;
         final LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -645,7 +578,7 @@ public class PlayerActivity extends Activity {
         name.setSingleLine(true);
         name.setEllipsize(TextUtils.TruncateAt.END);
         row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
-        String st = current ? "İZLENİYOR" : (Live.status(c) == Live.LIVE ? "Canlı" : (offline ? "Yayın yok" : ""));
+        String st = current ? "İZLENİYOR" : (Health.status(c) == Health.LIVE ? "Canlı" : (offline ? "Kapalı" : ""));
         final TextView badge = Ui.text(this, st, 12, Ui.BOLD, current ? Ui.WHITE : Ui.MUTED);
         badge.setPadding(px(9), px(4), px(9), px(4));
         if (current) badge.setBackground(Ui.rounded(this, Ui.ACCENT, 8));
@@ -709,8 +642,6 @@ public class PlayerActivity extends Activity {
     private void goSleep() {
         Prefs.sleepAt = 0;
         sleeping = true;
-        resolveToken++;
-        player.stop();
         stream.stop();
         hideZap();
         hideError();
@@ -822,8 +753,7 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
                 userPaused = state == 1;
-                if (usingStream) stream.toggle();
-                else player.toggle();
+                stream.toggle();
                 showOsd();
                 return true;
             case KeyEvent.KEYCODE_INFO:
@@ -876,16 +806,13 @@ public class PlayerActivity extends Activity {
     protected void onStop() {
         super.onStop();
         stopped = true;
-        resolveToken++;
         ui.removeCallbacks(tick);
-        player.stop();
         stream.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
-        player.destroy();
         stream.release();
         super.onDestroy();
     }

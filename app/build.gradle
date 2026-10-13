@@ -5,7 +5,7 @@ plugins {
 // Uzaktan kanal listesi: GitHub'da derlenirken depo adı otomatik alınır.
 // Android Studio'da derliyorsan gradle.properties içine channelsRepo=kullaniciadi/depo yaz.
 def repo = System.getenv("GITHUB_REPOSITORY") ?: (project.findProperty("channelsRepo") ?: "")
-def listUrl = repo ? "https://raw.githubusercontent.com/${repo}/HEAD/app/src/main/assets/channels.json" : ""
+def listUrl = repo ? "https://raw.githubusercontent.com/${repo}/HEAD/app/src/main/assets/channels.m3u" : ""
 
 android {
     namespace 'com.turktv.app'
@@ -16,8 +16,8 @@ android {
         minSdk 23
         // 33: otomatik açılış servisinin eski/yeni tüm Android TV'lerde sorunsuz çalışması için
         targetSdk 33
-        versionCode 3
-        versionName '3.0'
+        versionCode 4
+        versionName '4.0'
         buildConfigField "String", "CHANNELS_URL", "\"${listUrl}\""
     }
 

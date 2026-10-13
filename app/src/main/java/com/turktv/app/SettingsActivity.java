@@ -1,8 +1,6 @@
 package com.turktv.app;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.widget.EditText;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -26,16 +24,14 @@ public class SettingsActivity extends Activity {
     private interface Setter { void set(boolean v); }
 
     private static final class Row {
-        String title, sub, descTitle, desc;
+        String title, sub, desc, note;
         int icon;
-        Getter toggleGet;        // toggle satırı ise
+        Getter toggleGet;  // açma/kapama satırı
         Setter toggleSet;
-        Runnable action;         // değer/işlem satırı ise
-        TextView valueView, subView;
+        Runnable action;   // işlem satırı
+        TextView valueView, subView, titleView;
         View track, knob;
         LinearLayout view;
-        TextView titleView;
-        boolean overlayNote;
     }
 
     private final List<Row> rows = new ArrayList<>();
@@ -60,7 +56,7 @@ public class SettingsActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(Ui.text(this, "Ayarlar", 34, Ui.BOLD, Ui.TEXT));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        header.addView(Ui.text(this, "TV · sürüm " + BuildConfig.VERSION_NAME, 14, Ui.REGULAR, Ui.MUTED));
+        header.addView(Ui.text(this, "TV · sürüm " + BuildConfig.VERSION_NAME + " · Yusuf Alper Dırak", 14, Ui.REGULAR, Ui.MUTED));
         root.addView(header);
 
         LinearLayout body = new LinearLayout(this);
@@ -80,7 +76,6 @@ public class SettingsActivity extends Activity {
         scroll.addView(list);
         body.addView(scroll, new LinearLayout.LayoutParams(0, -1, 1f));
 
-        // Sağ bilgi kutusu
         LinearLayout aside = new LinearLayout(this);
         aside.setOrientation(LinearLayout.VERTICAL);
         aside.setPadding(px(28), px(28), px(28), px(28));
@@ -104,27 +99,12 @@ public class SettingsActivity extends Activity {
         body.addView(aside, aLp);
 
         // --- Satırlar
-        Row r;
-
-        final Row pl = new Row();
-        pl.title = "Yayın listesi (M3U)";
-        pl.sub = playlistSub();
-        pl.descTitle = "Kendi yayın listen";
-        pl.desc = "IPTV aboneliğinin M3U liste linkini ekle. Listede bulunan kanallar bu adresten, "
-                + "bulunmayanlar YouTube'dan oynatılır. Bir adres çalışmazsa listedeki yedek adres denenir.";
-        pl.icon = R.drawable.ic_list;
-        pl.action = () -> editPlaylist(pl);
-        addRow(list, pl);
-        pl.valueView.setText(Prefs.playlistUrl(this).isEmpty() ? "Ekle  ›" : "Değiştir  ›");
-
-        r = new Row();
+        Row r = new Row();
         r.title = "TV açılınca otomatik başlat";
         r.sub = "Televizyon açıldığında uygulama direkt açılır";
-        r.descTitle = "TV açılınca otomatik başlat";
         r.desc = "Televizyonu açtığında başka hiçbir şeye dokunmadan TV uygulaması açılır. "
                 + "\"Son izlenen kanalla aç\" da açıksa doğrudan son kanal oynamaya başlar.";
         r.icon = R.drawable.ic_power;
-        r.overlayNote = true;
         r.toggleGet = () -> Prefs.autostart(this);
         r.toggleSet = v -> {
             Prefs.autostart(this, v);
@@ -135,12 +115,12 @@ public class SettingsActivity extends Activity {
                 WakeService.stop(this);
             }
         };
+        r.note = "overlay";
         addRow(list, r);
 
         r = new Row();
         r.title = "Son izlenen kanalla aç";
         r.sub = "Açılışta ana ekran yerine doğrudan yayına geç";
-        r.descTitle = r.title;
         r.desc = "Uygulama açıldığında ana ekranı atlayıp en son izlediğin kanalı tam ekran başlatır. "
                 + "Geri tuşuyla her zaman ana ekrana dönebilirsin.";
         r.icon = R.drawable.ic_play;
@@ -151,7 +131,6 @@ public class SettingsActivity extends Activity {
         r = new Row();
         r.title = "Önizlemede ses";
         r.sub = "Ana ekrandaki küçük önizleme sesli oynasın";
-        r.descTitle = r.title;
         r.desc = "Kapalıyken önizleme sessiz oynar; kanallar arasında gezinirken ses karışmaz.";
         r.icon = R.drawable.ic_sound;
         r.toggleGet = () -> Prefs.previewSound(this);
@@ -159,37 +138,21 @@ public class SettingsActivity extends Activity {
         addRow(list, r);
 
         r = new Row();
-        r.title = "Yayını olmayan kanalları gizle";
-        r.sub = "O an canlı olmayan kanallar listede görünmesin";
-        r.descTitle = r.title;
-        r.desc = "Ana ekranda yalnızca şu an canlı yayında olan kanallar gösterilir. "
-                + "Liste her açılışta yeniden kontrol edilir.";
+        r.title = "Kapalı kanalları gizle";
+        r.sub = "O an yayınına ulaşılamayan kanallar listede görünmesin";
+        r.desc = "Uygulama her açılışta kanalların yayınlarına ulaşılabiliyor mu kontrol eder. "
+                + "Bu açıkken yalnızca çalışan kanallar gösterilir.";
         r.icon = R.drawable.ic_list;
         r.toggleGet = () -> Prefs.hideOffline(this);
         r.toggleSet = v -> Prefs.hideOffline(this, v);
         addRow(list, r);
 
-        final Row player = new Row();
-        player.title = "Varsayılan oynatıcı";
-        player.sub = "Kanal seçince yayın nerede açılsın";
-        player.descTitle = player.title;
-        player.desc = "Uygulama içi: yayın bu uygulamada açılır, kanal değiştirmek hızlıdır.\n"
-                + "YouTube: kanal seçince YouTube uygulaması açılır.";
-        player.icon = R.drawable.ic_youtube;
-        player.action = () -> {
-            Prefs.useYoutube(this, !Prefs.useYoutube(this));
-            player.valueView.setText(playerValue());
-        };
-        addRow(list, player);
-        player.valueView.setText(playerValue());
-
         final Row update = new Row();
         update.title = "Kanal listesini güncelle";
         update.sub = listSub();
-        update.descTitle = update.title;
         update.desc = RemoteList.enabled()
                 ? "Kanal listesi her açılışta internetten otomatik güncellenir. Şimdi güncellemek için OK'e bas."
-                : "Uzaktan güncelleme bu derlemede kapalı. Açmak için uygulamayı GitHub üzerinden derle (README).";
+                : "Uzaktan güncelleme bu derlemede kapalı.";
         update.icon = R.drawable.ic_refresh;
         update.action = () -> {
             update.valueView.setText("Güncelleniyor…");
@@ -206,86 +169,6 @@ public class SettingsActivity extends Activity {
         setContentView(root);
         rows.get(0).view.requestFocus();
         showAside(rows.get(0));
-    }
-
-    private String playlistSub() {
-        if (Prefs.playlistUrl(this).isEmpty()) return "Ayarlanmadı · eklemek için OK";
-        String s = Playlist.matched() + " kanal eşleşti";
-        int total = Prefs.playlistTotal(this);
-        if (total > 0) s += " (listede " + total + " kayıt)";
-        long t = Prefs.playlistUpdated(this);
-        if (t > 0) s += " · " + new SimpleDateFormat("d MMM HH:mm", Actions.TR).format(new Date(t));
-        return s;
-    }
-
-    private void editPlaylist(final Row row) {
-        final LinkServer server = new LinkServer();
-        final AlertDialog[] dlg = new AlertDialog[1];
-        boolean serving = server.start(url -> {
-            if (dlg[0] != null) dlg[0].dismiss();
-            savePlaylist(url, row);
-        });
-        String ip = LinkServer.localIp();
-
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(px(28), px(12), px(28), 0);
-        String help = (serving && ip != null)
-                ? "Uzun linki kumandayla yazmak yerine: telefonun aynı Wi-Fi'dayken tarayıcıda şu adresi aç ve linki oraya yapıştır:"
-                : "M3U liste linkini aşağıya yaz:";
-        TextView t1 = Ui.text(this, help, 16, Ui.REGULAR, Ui.SOFT);
-        t1.setLineSpacing(px(4), 1f);
-        box.addView(t1);
-        if (serving && ip != null) {
-            TextView addr = Ui.text(this, "http://" + ip + ":" + server.port(), 30, Ui.BOLD, Ui.TEXT);
-            addr.setPadding(0, px(12), 0, px(16));
-            box.addView(addr);
-            box.addView(Ui.text(this, "veya buraya yaz:", 14, Ui.REGULAR, Ui.MUTED));
-        }
-        final EditText et = new EditText(this);
-        et.setSingleLine(true);
-        et.setHint("http://...");
-        et.setText(Prefs.playlistUrl(this));
-        box.addView(et);
-
-        AlertDialog.Builder b = new AlertDialog.Builder(this)
-                .setTitle("Yayın listesi (M3U)")
-                .setView(box)
-                .setPositiveButton("Kaydet", (d, w) -> savePlaylist(et.getText().toString().trim(), row))
-                .setNegativeButton("İptal", null)
-                .setOnDismissListener(d -> server.stop());
-        if (!Prefs.playlistUrl(this).isEmpty()) {
-            b.setNeutralButton("Listeyi kaldır", (d, w) -> savePlaylist("", row));
-        }
-        dlg[0] = b.show();
-    }
-
-    private void savePlaylist(String url, final Row row) {
-        if (!url.isEmpty() && !url.startsWith("http://") && !url.startsWith("https://")) {
-            Toast.makeText(this, "Link http:// veya https:// ile başlamalı", Toast.LENGTH_LONG).show();
-            return;
-        }
-        Prefs.playlistUrl(this, url);
-        if (url.isEmpty()) {
-            Playlist.clear(this);
-            row.subView.setText(playlistSub());
-            row.valueView.setText("Ekle  ›");
-            Toast.makeText(this, "Liste kaldırıldı, kanallar YouTube'dan oynatılacak", Toast.LENGTH_LONG).show();
-            return;
-        }
-        row.valueView.setText("Yükleniyor…");
-        row.subView.setText("Liste indiriliyor ve kanallar eşleştiriliyor…");
-        Playlist.refresh(this, Channel.loadAll(this), (changed, err) -> {
-            row.valueView.setText("Değiştir  ›");
-            row.subView.setText(playlistSub());
-            String m = err != null ? err
-                    : Playlist.matched() + " kanal listenle eşleşti. Bu kanallar artık kendi listenden oynatılacak.";
-            Toast.makeText(this, m, Toast.LENGTH_LONG).show();
-        });
-    }
-
-    private String playerValue() {
-        return Prefs.useYoutube(this) ? "YouTube  ›" : "Uygulama içi  ›";
     }
 
     private String channelCount() {
@@ -307,8 +190,6 @@ public class SettingsActivity extends Activity {
         v.setClickable(true);
         v.setPadding(px(22), px(14), px(22), px(14));
         v.setMinimumHeight(px(72));
-        final GradientDrawable bg = Ui.rounded(this, Ui.SURFACE, 16);
-        v.setBackground(bg);
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
@@ -330,8 +211,7 @@ public class SettingsActivity extends Activity {
             r.track = track;
             r.knob = knob;
             v.setOnClickListener(x -> {
-                boolean nv = !r.toggleGet.get();
-                r.toggleSet.set(nv);
+                r.toggleSet.set(!r.toggleGet.get());
                 styleRow(r, true);
             });
         } else {
@@ -369,16 +249,13 @@ public class SettingsActivity extends Activity {
 
     private void showAside(Row r) {
         asideIcon.setImageResource(r.icon);
-        asideTitle.setText(r.descTitle);
+        asideTitle.setText(r.title);
         asideDesc.setText(r.desc);
-        if (r.overlayNote) {
+        if ("overlay".equals(r.note)) {
             asideNote.setText(Actions.hasOverlay(this)
                     ? "Gerekli izin verilmiş, otomatik açılış hazır."
                     : "Bazı televizyonlarda \"Diğer uygulamaların üzerinde göster\" izni gerekir. "
                     + "Ayarı açtığında izin ekranı gelir; bir kere onaylaman yeterli.");
-            asideNote.setVisibility(View.VISIBLE);
-        } else if (r.action != null && r.descTitle.equals("Kendi yayın listen")) {
-            asideNote.setText("Link yalnızca bu TV'de saklanır; GitHub'a veya başka bir yere gönderilmez.");
             asideNote.setVisibility(View.VISIBLE);
         } else {
             asideNote.setVisibility(View.GONE);
@@ -388,12 +265,10 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!rows.isEmpty()) {
-            View f = getCurrentFocus();
-            for (Row r : rows) {
-                styleRow(r, r.view == f);
-                if (r.view == f) showAside(r);
-            }
+        View f = getCurrentFocus();
+        for (Row r : rows) {
+            styleRow(r, r.view == f);
+            if (r.view == f) showAside(r);
         }
     }
 }

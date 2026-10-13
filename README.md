@@ -3,14 +3,15 @@
 Türk kanallarının **resmi YouTube canlı yayınlarını** tek yerde toplayan, kumandayla kullanılan Android TV uygulaması. IPTV listesi kullanmaz.
 
 ## Özellikler
-- **Ana ekran:** küçük canlı önizleme penceresi, kategoriler (Tümü, Ulusal, Haber, Spor, Belgesel & Müzik, Çocuk, Yurtdışı), her kanalda *Canlı / Yayın yok* etiketi, favoriler.
-- **Uygulama içi oynatıcı:** yayın uygulamanın içinde tam ekran oynar. İstersen tek tuşla **YouTube'da aç**.
+- **172 kanal**, kategorilere ayrılmış (Ulusal, Haber, Spor, Eğlence, Film, Belgesel & Kültür, Müzik, Çocuk, Genel, Dini, Yurt Dışı), kanal logolarıyla.
+- **Ana ekran:** küçük canlı önizleme penceresi, her kanalda *Canlı / Kapalı* etiketi, favoriler.
+- **Yenile tuşu:** yayın açılmazsa veya takılırsa tek tuşla yeniden açar. Ayrıca kendiliğinden yeniden bağlanır.
 - **Hızlı kanal listesi:** izlerken OK → soldan liste açılır, yayın arkada devam eder.
-- **Otomatik yeniden bağlanma:** yayın donar/kesilirse kendiliğinden yeniden bağlanır. Yayını olmayan kanal, yayın başlayınca kendiliğinden açılır.
-- **Türkiye saati:** yerel saatin yanında Türkiye saati (saat farkı varsa).
-- **Uyku zamanlayıcısı:** 30 / 60 / 90 dakika.
-- **TV açılınca otomatik başlat** ve **son kanalla aç**.
-- **Kanal listesi internetten güncellenir** (GitHub ile derlendiyse).
+- **Türkiye saati**, **uyku zamanlayıcısı** (30/60/90 dk), **TV açılınca otomatik başlat**, **son kanalla aç**.
+- **Kanal listesi internetten güncellenir:** `app/src/main/assets/channels.m3u` dosyasını GitHub'da düzenlemek yeterli.
+- Açılışta kısa bir yükleme ekranı.
+
+Bu uygulama Yusuf Alper Dırak tarafından oluşturulmuştur.
 
 ## Kumanda
 | Tuş | Ana ekran | İzlerken |
@@ -47,9 +48,5 @@ Bu yolla derlenen uygulama, kanal listesini her açılışta **o depodaki** `app
 - Bazı üreticiler (özellikle yeni Google TV cihazları) bu tür otomatik başlatmayı kısıtlayabilir.
 
 ## Kanal listesi
-`app/src/main/assets/channels.json` — `youtube` alanı kanalın YouTube adresindeki `@kullaniciadi` kısmıdır (youtube.com/**@trthaber**). Listedeki sıra kanal numarasıdır.
+`app/src/main/assets/channels.m3u` — standart M3U biçimi. Her kanal için `#EXTINF` satırında `group-title` (kategori) ve `tvg-logo` (logo), alt satırda yayın adresi bulunur. Listedeki sıra, kategori sırasıyla birlikte kanal numarasını belirler.
 
-## Bilinmesi gerekenler
-- Haber kanallarının çoğu YouTube'da 7/24 canlı yayın yapar.
-- ATV, Kanal D, Star, Show, NOW, TV8 gibi kanallar yayın hakları nedeniyle çoğu zaman canlı yayın açmaz veya yurtdışına kapatır; uygulama bunu "Yayın yok" olarak gösterir ve resmi uygulamaya yönlendirir. TRT kanalları **tabii** uygulamasında ücretsizdir.
-- Bazı kanallar yayınlarının başka uygulamalarda oynatılmasını kapatmış olabilir; o zaman "YouTube'da aç" butonu kullanılır.
