@@ -41,6 +41,8 @@ public class MainActivity extends Activity {
     private String builtFavs = "";
 
     private StreamPlayer preview;
+    private YtPlayer ytPreview;   // resmi YouTube yayını olan kanalların önizlemesi
+    private int ytToken;
     private TextView previewNote;
     private TextView clockLocal, clockTr;
     private TextView infoCat, infoName, infoHint;
@@ -118,6 +120,22 @@ public class MainActivity extends Activity {
 
         preview = new StreamPlayer(this);
         root.addView(preview.view, new FrameLayout.LayoutParams(-1, -1));
+        ytPreview = new YtPlayer(this);
+        ytPreview.web.setVisibility(View.GONE);
+        root.addView(ytPreview.web, new FrameLayout.LayoutParams(-1, -1));
+        ytPreview.setListener(new YtPlayer.Listener() {
+            @Override
+            public void onState(int state) {
+            }
+
+            @Override
+            public void onError(int code) { // YouTube oynatmadı: listedeki link
+                ytToken++;
+                ytPreview.stop();
+                ytPreview.web.setVisibility(View.GONE);
+                if (resumed) preview.play(selected, !Prefs.previewSound(MainActivity.this));
+            }
+        });
         preview.setListener(new StreamPlayer.Listener() {
             @Override
             public void onState(int state) {
@@ -480,7 +498,27 @@ public class MainActivity extends Activity {
 
     private void startPreview() {
         if (!resumed) return;
-        preview.play(selected, !Prefs.previewSound(this));
+        final Channel c = selected;
+        final boolean muted = !Prefs.previewSound(this);
+        final int t = ++ytToken;
+        if (!c.youtube.isEmpty()) {
+            preview.stop();
+            ytPreview.web.setVisibility(View.VISIBLE);
+            YouTubeLive.find(c.youtube, false, id -> {
+                if (t != ytToken || !resumed || selected != c) return;
+                if (id != null) {
+                    ytPreview.play(id, muted);
+                } else { // YouTube'da yayın yok: listedeki link
+                    ytPreview.stop();
+                    ytPreview.web.setVisibility(View.GONE);
+                    preview.play(c, muted);
+                }
+            });
+        } else {
+            ytPreview.stop();
+            ytPreview.web.setVisibility(View.GONE);
+            preview.play(c, muted);
+        }
     }
 
     private void updateInfo() {
@@ -604,12 +642,15 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(tick);
         preview.detach(); // tam ekrana geçilirse yayın kesilmeden devam eder
+        ytToken++;
+        ytPreview.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
         preview.release();
+        ytPreview.destroy();
         super.onDestroy();
     }
 }

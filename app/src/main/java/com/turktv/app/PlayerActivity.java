@@ -40,6 +40,10 @@ public class PlayerActivity extends Activity {
     private int index;
 
     private StreamPlayer stream;
+    private YtPlayer yt;          // resmi YouTube canlı yayını olan kanallar için (ör. ATV)
+    private boolean usingYt;      // şu an YouTube'dan mı oynuyor
+    private boolean ytFailed;     // bu kanal için YouTube denendi ve olmadı → listedeki linke geç
+    private int ytToken;
     private int state = -1;
     private long stateSince;
     private boolean userPaused;
@@ -110,6 +114,21 @@ public class PlayerActivity extends Activity {
             @Override
             public void onError() {
                 reconnect();
+            }
+        });
+
+        yt = new YtPlayer(this);
+        yt.web.setVisibility(View.GONE);
+        root.addView(yt.web, new FrameLayout.LayoutParams(-1, -1));
+        yt.setListener(new YtPlayer.Listener() {
+            @Override
+            public void onState(int s) {
+                if (usingYt && s >= 0) onPlayerState(s);
+            }
+
+            @Override
+            public void onError(int code) {
+                if (usingYt) ytFallback();
             }
         });
 
@@ -376,12 +395,14 @@ public class PlayerActivity extends Activity {
 
     private void changeChannel(int i) {
         retries = 0;
+        ytFailed = false;
         playChannel(i, false);
     }
 
     private void refresh() {
         Toast.makeText(this, cur().name + " yenileniyor", Toast.LENGTH_SHORT).show();
         retries = 0;
+        ytFailed = false;
         playChannel(index, true);
     }
 
@@ -391,10 +412,37 @@ public class PlayerActivity extends Activity {
         hideError();
         userPaused = false;
         setState(-1);
-        stream.play(cur(), false, force);
+        final Channel c = cur();
+        final int t = ++ytToken;
+        if (!c.youtube.isEmpty() && !ytFailed) {
+            // Önce kanalın resmi YouTube canlı yayını; yoksa listedeki link
+            usingYt = true;
+            stream.stop();
+            yt.web.setVisibility(View.VISIBLE);
+            YouTubeLive.find(c.youtube, force, id -> {
+                if (t != ytToken || stopped) return;
+                if (id == null) ytFallback();
+                else yt.play(id, false);
+            });
+        } else {
+            usingYt = false;
+            yt.stop();
+            yt.web.setVisibility(View.GONE);
+            stream.play(c, false, force);
+        }
         updateOsd();
         showOsd();
         updateLoading();
+    }
+
+    /** YouTube'da yayın yok / açılmadı: aynı kanalı listedeki linkten aç. */
+    private void ytFallback() {
+        ytFailed = true;
+        ytToken++;
+        usingYt = false;
+        yt.stop();
+        yt.web.setVisibility(View.GONE);
+        playChannel(index, true);
     }
 
     private void setState(int s) {
@@ -429,6 +477,10 @@ public class PlayerActivity extends Activity {
     /** Otomatik yeniden bağlanma: birkaç kez dener, olmazsa Yenile ekranını gösterir. */
     private void reconnect() {
         if (stopped || sleeping) return;
+        if (usingYt) {
+            ytFallback();
+            return;
+        }
         retries++;
         if (retries > MAX_RETRIES) {
             Health.report(cur(), false);
@@ -535,6 +587,8 @@ public class PlayerActivity extends Activity {
     private void showError() {
         errorSince = System.currentTimeMillis();
         stream.stopKeepFrame();
+        ytToken++;
+        yt.stop();
         spinner.setVisibility(View.GONE);
         errorText.setText("Bu kanalın yayını şu an açılamıyor.\n"
                 + "Yenile'ye basabilir veya başka kanala geçebilirsin. Bir dakika içinde kendiliğinden tekrar denenecek.");
@@ -777,7 +831,8 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
                 userPaused = state == 1;
-                stream.toggle();
+                if (usingYt) yt.toggle();
+                else stream.toggle();
                 showOsd();
                 return true;
             case KeyEvent.KEYCODE_INFO:
@@ -832,12 +887,15 @@ public class PlayerActivity extends Activity {
         stopped = true;
         ui.removeCallbacks(tick);
         stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır
+        ytToken++;
+        yt.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
         stream.release();
+        yt.destroy();
         super.onDestroy();
     }
 }
