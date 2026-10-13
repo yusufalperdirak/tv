@@ -24,7 +24,7 @@ final class Clock {
         view.setBackground(Ui.rounded(c, 0x990B0D12, 18));
 
         LinearLayout lc = column(c);
-        localTime = Ui.text(c, "", 30, Ui.MEDIUM, Ui.TEXT);
+        localTime = timeText(c);
         lc.addView(localTime);
         localLabel = Ui.text(c, "YEREL", 10, Ui.BOLD, Ui.MUTED);
         localLabel.setLetterSpacing(0.14f);
@@ -36,7 +36,7 @@ final class Clock {
         view.addView(divider, Ui.margins(c, Math.max(1, Ui.px(c, 1)), Ui.px(c, 34), 18, 0, 18, 0));
 
         LinearLayout tc = column(c);
-        trTime = Ui.text(c, "", 30, Ui.MEDIUM, Ui.TEXT);
+        trTime = timeText(c);
         tc.addView(trTime);
         TextView trLabel = Ui.text(c, "TÜRKİYE", 10, Ui.BOLD, Ui.MUTED);
         trLabel.setLetterSpacing(0.14f);
@@ -44,6 +44,15 @@ final class Clock {
         view.addView(tc);
         trCol = tc;
         update();
+    }
+
+    /** Tek satır ve her zaman "00:00" sığacak genişlikte saat yazısı (kesilmesin). */
+    private static TextView timeText(Context c) {
+        TextView t = Ui.text(c, "", 30, Ui.MEDIUM, Ui.TEXT);
+        t.setSingleLine(true);
+        t.setGravity(android.view.Gravity.CENTER);
+        t.setMinWidth((int) Math.ceil(t.getPaint().measureText("00:00")) + Ui.px(c, 4));
+        return t;
     }
 
     private static LinearLayout column(Context c) {
