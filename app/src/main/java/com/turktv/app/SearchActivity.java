@@ -49,7 +49,7 @@ public class SearchActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Ui.BG);
-        root.setPadding(px(64), px(30), px(64), 0);
+        root.setPadding(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
 
         // Başlık
         LinearLayout header = new LinearLayout(this);
@@ -90,7 +90,7 @@ public class SearchActivity extends Activity {
         final android.graphics.drawable.GradientDrawable fieldBg = Ui.rounded(this, 0xFF1A1F29, 32);
         field.setBackground(fieldBg);
         input.setOnFocusChangeListener((v, has) -> fieldBg.setStroke(has ? px(3) : 0, Ui.WHITE));
-        bar.addView(field, new LinearLayout.LayoutParams(px(760), px(64)));
+        bar.addView(field, new LinearLayout.LayoutParams(px(660), px(64)));
 
         LinearLayout mic = Ui.button(this, R.drawable.ic_mic, null, 64, Ui.SURFACE2);
         mic.setOnClickListener(v -> startVoice());
@@ -146,7 +146,7 @@ public class SearchActivity extends Activity {
         resultTitle.setText(q.trim().isEmpty() ? "Yazmaya başla"
                 : res.isEmpty() ? "Sonuç yok" : res.size() + " kanal bulundu");
         int gap = px(18);
-        int w = (px(1152) - 5 * gap) / 6;
+        int w = (px(1280 - 2 * Ui.edgeX(this) - 8) - 5 * gap) / 6;
         int col = 0;
         for (Channel c : res) {
             View card = Cards.make(this, c, 180, 104, true, null);

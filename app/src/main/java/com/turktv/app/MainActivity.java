@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private Channel selected;
     private boolean resumed;
     private boolean builtHideOffline;
+    private int builtEdge;
     private String builtFavs = "";
 
     private StreamPlayer preview;
@@ -89,6 +90,7 @@ public class MainActivity extends Activity {
         Epg.ensureLoaded(this);
         selected = channels.get(clamp(Prefs.last(this)));
 
+        builtEdge = Prefs.edge(this);
         buildUi();
         rebuildRows(selected);
         if (Prefs.autostart(this)) WakeService.start(this);
@@ -151,7 +153,7 @@ public class MainActivity extends Activity {
         previewNote.setBackground(Ui.rounded(this, 0xCC0B0D12, 16));
         previewNote.setVisibility(View.GONE);
         FrameLayout.LayoutParams pnLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        pnLp.setMargins(0, px(96), px(64), 0);
+        pnLp.setMargins(0, px(Ui.edgeY(this) + 70), px(Ui.edgeX(this)), 0);
         root.addView(previewNote, pnLp);
 
         // --- Üst çubuk
@@ -178,7 +180,7 @@ public class MainActivity extends Activity {
         clockTr = Ui.text(this, "", 14, Ui.MEDIUM, Ui.MUTED);
         header.addView(clockTr, Ui.margins(this, -2, -2, 10, 0, 0, 0));
         FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams(-1, px(48), Gravity.TOP);
-        hLp.setMargins(px(64), px(26), px(64), 0);
+        hLp.setMargins(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
         root.addView(header, hLp);
 
         // --- Kanal bilgisi
@@ -214,7 +216,7 @@ public class MainActivity extends Activity {
         infoHint = Ui.text(this, "", 13, Ui.MEDIUM, Ui.MUTED);
         info.addView(infoHint, Ui.margins(this, -1, -2, 0, 16, 0, 0));
         FrameLayout.LayoutParams iLp = new FrameLayout.LayoutParams(px(660), -2, Gravity.TOP | Gravity.START);
-        iLp.setMargins(px(64), px(124), 0, 0);
+        iLp.setMargins(px(Ui.edgeX(this)), px(Ui.edgeY(this) + 98), 0, 0);
         root.addView(info, iLp);
 
         // --- Kategori satırları (kendi alanında kayar, üstteki bilgilerin üzerine taşmaz)
@@ -310,7 +312,7 @@ public class MainActivity extends Activity {
         LinearLayout head = new LinearLayout(this);
         head.setOrientation(LinearLayout.HORIZONTAL);
         head.setGravity(Gravity.BOTTOM);
-        head.setPadding(px(64), 0, px(64), 0);
+        head.setPadding(px(Ui.edgeX(this)), 0, px(Ui.edgeX(this)), 0);
         head.addView(Ui.text(this, title, 20, Ui.MEDIUM, Ui.TEXT));
         if (hint != null) head.addView(Ui.text(this, hint, 13, Ui.REGULAR, Ui.MUTED), Ui.margins(this, -2, -2, 14, 0, 0, 2));
         row.addView(head);
@@ -322,7 +324,7 @@ public class MainActivity extends Activity {
         LinearLayout cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setClipChildren(false);
-        cards.setPadding(px(64), px(16), px(400), px(18));
+        cards.setPadding(px(Ui.edgeX(this)), px(16), px(400), px(18));
         hs.addView(cards);
         row.addView(hs);
 
@@ -330,7 +332,7 @@ public class MainActivity extends Activity {
             if (hideOffline && Health.status(c) == Health.OFFLINE) continue;
             final View card = Cards.make(this, c, 156, 92, true, (ch, v, has) -> {
                 if (!has) return;
-                hs.smoothScrollTo(Math.max(0, v.getLeft() - px(64)), 0);
+                hs.smoothScrollTo(Math.max(0, v.getLeft() - px(Ui.edgeX(this))), 0);
                 rowsScroll.smoothScrollTo(0, row.getTop());
                 select(ch);
             });
@@ -562,7 +564,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (Channel.loadAll(this) != channels) {
+        if (Channel.loadAll(this) != channels || builtEdge != Prefs.edge(this)) {
             recreate();
             return;
         }

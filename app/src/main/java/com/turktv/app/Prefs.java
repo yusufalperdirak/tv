@@ -30,6 +30,10 @@ final class Prefs {
     static void hideOffline(Context c, boolean v) { p(c).edit().putBoolean("hideOffline", v).apply(); }
 
 
+    /** Ekran kenar boşluğu: 0 az, 1 normal, 2 çok (TV görüntüyü kenarlardan kırpıyorsa artırılır). */
+    static int edge(Context c) { return p(c).getInt("edge", 1); }
+    static void edge(Context c, int v) { p(c).edit().putInt("edge", v).apply(); }
+
     static int last(Context c) { return p(c).getInt("last", 0); }
     static void last(Context c, int v) { p(c).edit().putInt("last", v).apply(); }
 

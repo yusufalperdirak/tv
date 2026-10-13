@@ -35,6 +35,20 @@ final class Ui {
     static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
     static final Typeface REGULAR = Typeface.create("sans-serif", Typeface.NORMAL);
 
+    /**
+     * Güvenli kenar boşluğu (tasarım px). Birçok TV görüntünün kenarlarını kırpar (overscan);
+     * menüler bu boşluğun içinde kalır.
+     */
+    static float edgeX(Context c) {
+        int l = Prefs.edge(c);
+        return l == 0 ? 56 : l == 2 ? 120 : 88;
+    }
+
+    static float edgeY(Context c) {
+        int l = Prefs.edge(c);
+        return l == 0 ? 26 : l == 2 ? 64 : 42;
+    }
+
     /** Tasarımdaki piksel değerini bu ekrana çevirir (tasarım 1280 px genişlik). */
     static int px(Context c, float designPx) {
         DisplayMetrics m = c.getResources().getDisplayMetrics();

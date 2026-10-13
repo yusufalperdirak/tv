@@ -133,7 +133,7 @@ public class PlayerActivity extends Activity {
         numberEntry.setBackground(Ui.rounded(this, 0xE60B0D12, 18));
         numberEntry.setVisibility(View.GONE);
         FrameLayout.LayoutParams nLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        nLp.setMargins(0, px(90), px(48), 0);
+        nLp.setMargins(0, px(Ui.edgeY(this) + 60), px(Ui.edgeX(this)), 0);
         root.addView(numberEntry, nLp);
 
         setContentView(root);
@@ -154,7 +154,7 @@ public class PlayerActivity extends Activity {
         clockTr.setShadowLayer(px(8), 0, px(1), 0x99000000);
         clockBox.addView(clockTr, Ui.margins(this, -2, -2, 10, 0, 0, 2));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        lp.setMargins(0, px(32), px(48), 0);
+        lp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
         root.addView(clockBox, lp);
     }
 
@@ -171,7 +171,7 @@ public class PlayerActivity extends Activity {
         strip.setGravity(Gravity.BOTTOM);
         strip.setClipChildren(false);
         FrameLayout.LayoutParams sLp = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-        sLp.setMargins(px(56), 0, px(56), px(44));
+        sLp.setMargins(px(Ui.edgeX(this)), 0, px(Ui.edgeX(this)), px(Ui.edgeY(this) + 8));
         osd.addView(strip, sLp);
 
         logoSlot = new FrameLayout(this);
@@ -190,6 +190,7 @@ public class PlayerActivity extends Activity {
         osdName = Ui.text(this, "", 34, Ui.BOLD, Ui.TEXT);
         osdName.setSingleLine(true);
         osdName.setEllipsize(TextUtils.TruncateAt.END);
+        osdName.setMaxWidth(px(420));
         r1.addView(osdName);
         osdLoading = Ui.text(this, "", 13, Ui.BOLD, 0xFFE3E7ED);
         osdLoading.setPadding(px(11), px(5), px(11), px(5));
@@ -298,7 +299,7 @@ public class PlayerActivity extends Activity {
         zapPanel.setClickable(true);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(px(28), px(32), px(22), px(26));
+        col.setPadding(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(22), px(Ui.edgeY(this)));
         zapPanel.addView(col, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout head = new LinearLayout(this);
@@ -327,7 +328,7 @@ public class PlayerActivity extends Activity {
         col.addView(Ui.text(this, "▲▼ gez    ◀▶ kategori    OK izle    Geri kapat", 13, Ui.MEDIUM, Ui.MUTED));
 
         zapPanel.setVisibility(View.GONE);
-        root.addView(zapPanel, new FrameLayout.LayoutParams(px(460), -1, Gravity.START));
+        root.addView(zapPanel, new FrameLayout.LayoutParams(px(400 + Ui.edgeX(this)), -1, Gravity.START));
     }
 
     private TextView arrowBox(String s) {

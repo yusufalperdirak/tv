@@ -49,7 +49,7 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Ui.BG);
-        root.setPadding(px(56), px(40), px(56), px(32));
+        root.setPadding(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), px(Ui.edgeY(this)));
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -146,6 +146,19 @@ public class SettingsActivity extends Activity {
         r.toggleGet = () -> Prefs.hideOffline(this);
         r.toggleSet = v -> Prefs.hideOffline(this, v);
         addRow(list, r);
+
+        final Row edge = new Row();
+        edge.title = "Ekran kenar boşluğu";
+        edge.sub = "Menüler ekranın kenarından taşıyorsa artır";
+        edge.desc = "Bazı televizyonlar görüntünün kenarlarını biraz keser. Butonlar veya yazılar "
+                + "ekrana tam sığmıyorsa bunu \"Çok\" yap; boşluk fazlaysa \"Az\" yap. Her basışta değişir.";
+        edge.icon = R.drawable.ic_tv;
+        edge.action = () -> {
+            Prefs.edge(this, (Prefs.edge(this) + 1) % 3);
+            recreate();
+        };
+        addRow(list, edge);
+        edge.valueView.setText(new String[]{"Az", "Normal", "Çok"}[Prefs.edge(this)] + "  ›");
 
         final Row update = new Row();
         update.title = "Kanal listesini güncelle";
