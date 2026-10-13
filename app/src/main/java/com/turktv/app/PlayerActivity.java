@@ -49,8 +49,7 @@ public class PlayerActivity extends Activity {
     private boolean sleeping;
 
     private View sink;
-    private ProgressBar spinner;     // ortadaki dönen yükleme simgesi (ilk açılış)
-    private ProgressBar osdSpinner;  // kanal adının yanındaki küçük simge
+    private ProgressBar spinner;     // ortadaki dönen yükleme simgesi
     private LinearLayout clockBox;
     private TextView clockLocal, clockTr;
     private FrameLayout osd;
@@ -192,8 +191,6 @@ public class PlayerActivity extends Activity {
         osdName.setEllipsize(TextUtils.TruncateAt.END);
         osdName.setMaxWidth(px(420));
         r1.addView(osdName);
-        osdSpinner = spinner();
-        r1.addView(osdSpinner, Ui.margins(this, px(24), px(24), 16, 0, 0, 0));
         osdLoading = Ui.text(this, "", 13, Ui.BOLD, 0xFFE3E7ED);
         osdLoading.setPadding(px(11), px(5), px(11), px(5));
         osdLoading.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
@@ -409,9 +406,7 @@ public class PlayerActivity extends Activity {
     private void updateLoading() {
         boolean loading = state != 1 && state != 2 && errorPanel.getVisibility() != View.VISIBLE;
         osdLoading.setVisibility(View.GONE);
-        osdSpinner.setVisibility(loading ? View.VISIBLE : View.GONE);
-        // ortadaki büyük simge sadece ekranda donuk kare yokken (ilk açılış)
-        spinner.setVisibility(loading && !stream.isFrozen() ? View.VISIBLE : View.GONE);
+        spinner.setVisibility(loading ? View.VISIBLE : View.GONE);
         if (state == 2) {
             osdLoading.setText("❚❚  Duraklatıldı");
             osdLoading.setVisibility(View.VISIBLE);
@@ -541,7 +536,6 @@ public class PlayerActivity extends Activity {
         errorSince = System.currentTimeMillis();
         stream.stopKeepFrame();
         spinner.setVisibility(View.GONE);
-        osdSpinner.setVisibility(View.GONE);
         errorText.setText("Bu kanalın yayını şu an açılamıyor.\n"
                 + "Yenile'ye basabilir veya başka kanala geçebilirsin. Bir dakika içinde kendiliğinden tekrar denenecek.");
         osdLoading.setText("Yayın yok");
@@ -680,7 +674,6 @@ public class PlayerActivity extends Activity {
         hideZap();
         hideError();
         spinner.setVisibility(View.GONE);
-        osdSpinner.setVisibility(View.GONE);
         hideOsd();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         sleepText.setText("Uyku modu\nDevam etmek için herhangi bir tuşa bas");
