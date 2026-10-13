@@ -1,0 +1,22 @@
+name: EPG kontrol
+on:
+  push:
+    branches: [epg-probe]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -sL -o epg.xml.gz https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz
+          ls -la epg.xml.gz
+          gunzip -c epg.xml.gz > epg.xml; ls -la epg.xml
+          grep -c '<programme' epg.xml
+          grep -o '<channel id="[^"]*"' epg.xml | sed 's/<channel id="//;s/"$//' | sort -u > epg_ids.txt
+          wc -l epg_ids.txt
+          grep -o 'tvg-id="[^"]*"' app/src/main/assets/channels.m3u | sed 's/tvg-id="//;s/"$//' | sort -u > m3u_ids.txt
+          echo "listede id: $(wc -l < m3u_ids.txt)  eslesen: $(comm -12 m3u_ids.txt epg_ids.txt | wc -l)"
+          echo "--- eslesmeyenler:"; comm -23 m3u_ids.txt epg_ids.txt | head -80
+          echo "--- ornek programme:"; grep -m3 '<programme' epg.xml
+          grep -m1 -A4 '<programme' epg.xml
+          echo "--- ilk/son tarih:"; grep -o 'start="[0-9]\{8\}' epg.xml | sort | uniq -c | head -12
