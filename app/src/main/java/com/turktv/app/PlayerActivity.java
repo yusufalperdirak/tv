@@ -266,7 +266,7 @@ public class PlayerActivity extends Activity {
         progressFill.setBackground(Ui.rounded(this, Ui.TEXT, 2));
         bar.addView(progressFill, new FrameLayout.LayoutParams(0, -1));
         progressBar = bar;
-        mid.addView(bar, Ui.margins(this, px(560), px(4), 0, 12, 0, 0));
+        mid.addView(bar, Ui.margins(this, -1, px(4), 0, 12, 40, 0));
 
         tsRow = new LinearLayout(this);
         tsRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -292,13 +292,13 @@ public class PlayerActivity extends Activity {
         tsTrack.addView(tsKnob, new FrameLayout.LayoutParams(px(16), px(16), Gravity.CENTER_VERTICAL));
         tsRow.addView(tsTrack, Ui.margins(this, 0, px(20), 12, 0, 12, 0));
         ((LinearLayout.LayoutParams) tsTrack.getLayoutParams()).weight = 1f;
-        tsLive = Ui.text(this, "CANLI", 12, Ui.BOLD, Ui.MUTED);
+        tsLive = Ui.text(this, "CANLI", 12, Ui.BOLD, Ui.LIVE);
         tsLive.setLetterSpacing(0.1f);
         tsLive.setPadding(px(10), px(4), px(10), px(4));
         tsLive.setBackground(Ui.rounded(this, 0x24F2F4F7, 10));
         tsRow.addView(tsLive);
         tsRow.setVisibility(View.GONE);
-        mid.addView(tsRow, Ui.margins(this, px(620), -2, 0, 14, 0, 0));
+        mid.addView(tsRow, Ui.margins(this, -1, -2, 0, 14, 40, 0));
 
         // Sağ: butonlar
         LinearLayout right = new LinearLayout(this);
@@ -380,12 +380,12 @@ public class PlayerActivity extends Activity {
         root.addView(seekBubble, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_VERTICAL | Gravity.START));
     }
 
-    private void showBubble(int dir) {
+    private void showBubble(int dir, int step) {
         if ((dir < 0) != (seekAccum < 0)) seekAccum = 0;
-        seekAccum += dir * 10;
+        seekAccum += dir * step;
         int abs = Math.abs(seekAccum);
         bubbleIcon.setImageResource(dir < 0 ? R.drawable.ic_rewind : R.drawable.ic_forward);
-        bubbleNum.setText(String.valueOf(Math.min(abs, 99)));
+        bubbleNum.setText(String.valueOf(step));
         bubbleLabel.setText(abs >= 60 ? (abs / 60) + " dk " + (abs % 60 > 0 ? (abs % 60) + " sn " : "") + (dir < 0 ? "geri" : "ileri")
                 : abs + " sn " + (dir < 0 ? "geri" : "ileri"));
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) seekBubble.getLayoutParams();
@@ -689,8 +689,11 @@ public class PlayerActivity extends Activity {
         nextTitle.setText(next != null ? next.title + "  " + Epg.hm(next.start) : "—");
         if (now != null) {
             progressBar.setVisibility(View.VISIBLE);
-            progressFill.getLayoutParams().width = (int) (px(560) * now.progress(System.currentTimeMillis()));
-            progressFill.requestLayout();
+            final float pr = now.progress(System.currentTimeMillis());
+            progressBar.post(() -> {
+                progressFill.getLayoutParams().width = (int) (progressBar.getWidth() * pr);
+                progressFill.requestLayout();
+            });
         } else {
             progressBar.setVisibility(View.GONE);
         }
@@ -698,22 +701,36 @@ public class PlayerActivity extends Activity {
 
     // ------------------------------------------------------------------ geri sarma
 
-    /** dir: -1 geri, +1 ileri (10 saniye). */
-    private void seek(int dir) {
+    private long lastRepeatSeek;
+
+    /** Tuş olayından sarma: tek basış 10 sn, basılı tutunca 1 dk (çok hızlı tekrarlar seyreltilir). */
+    private void seekKey(KeyEvent e, int dir) {
+        if (e.getRepeatCount() > 0) {
+            long now = System.currentTimeMillis();
+            if (now - lastRepeatSeek < 450) return;
+            lastRepeatSeek = now;
+            seek(dir, 60);
+        } else {
+            seek(dir, 10);
+        }
+    }
+
+    /** dir: -1 geri, +1 ileri; step: saniye. */
+    private void seek(int dir, int step) {
         showOsd();
-        showBubble(dir);
+        showBubble(dir, step);
         if (usingYt) {
             if (dir < 0) {
-                yt.seekBy(-10);
-                ytBehindSec += 10;
-            } else if (ytBehindSec <= 10) {
+                yt.seekBy(-step);
+                ytBehindSec += step;
+            } else if (ytBehindSec <= step) {
                 goLive();
                 return;
             } else {
-                yt.seekBy(10);
-                ytBehindSec -= 10;
+                yt.seekBy(step);
+                ytBehindSec -= step;
             }
-        } else if (!stream.seekBy(dir * 10000L)) {
+        } else if (!stream.seekBy(dir * step * 1000L)) {
             Toast.makeText(this, "Bu kanalda daha fazla geri sarılamıyor", Toast.LENGTH_SHORT).show();
         }
         updateTimeshift();
@@ -738,9 +755,8 @@ public class PlayerActivity extends Activity {
             return;
         }
         if (behind < 4000) { // canlı
-            SpannableString s = new SpannableString("●  CANLI");
-            s.setSpan(new ForegroundColorSpan(Ui.LIVE), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            liveBadge.setText(s);
+            liveBadge.setText("●  CANLI");
+            liveBadge.setTextColor(Ui.LIVE);
             liveBadge.setVisibility(View.VISIBLE);
             tsRow.setVisibility(View.GONE);
             if (btnLive.hasFocus()) btnList.requestFocus();
@@ -1042,13 +1058,13 @@ public class PlayerActivity extends Activity {
                     showOsd();
                     return super.dispatchKeyEvent(e);
                 }
-                seek(k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                seekKey(e, k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
                 return true;
             case KeyEvent.KEYCODE_MEDIA_REWIND:
-                seek(-1);
+                seekKey(e, -1);
                 return true;
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                seek(1);
+                seekKey(e, 1);
                 return true;
             case KeyEvent.KEYCODE_BACK:
                 if (barFocused) {
