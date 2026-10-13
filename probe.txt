@@ -1,0 +1,101 @@
+-rw-r--r-- 1 runner runner 162642 Oct 13 16:28 epg.xml.gz
+-rw-r--r-- 1 runner runner 2442596 Oct 13 16:28 epg.xml
+15431
+178 epg_ids.txt
+listede id: 171  eslesen: 34
+--- eslesmeyenler:
+4UTV.tr@SD
+ASTV.tr@SD
+ATVAlanya.tr@SD
+AfroturkTV.tr@SD
+AksuTV.tr@SD
+AlZahraTVTurkic.tr@SD
+AlanyaPostaTV.tr@SD
+AlmahriahTV.tr@SD
+AltasTV.tr@SD
+AnadoluNetTV.tr@SD
+ArasTV.tr@SD
+BRTV.tr@SD
+BabyTV.tr
+BirTV.tr@SD
+BricveSatrancTV.tr@SD
+CNBC-E.tr
+CayTV.tr@SD
+Ciftci.tr
+Cine1.tr
+DHA.tr
+DIYANET.tr
+DOST.tr
+DenizPostasiTV.tr@SD
+DisneyJr.tr@SD
+DiyarTV.tr@SD
+Dizi.tr
+DreamTurk.tr
+ERTV.tr@SD
+ESTV.tr@SD
+ETVKayseri.tr@SD
+ETVManisa.tr@SD
+EdessaTV.tr@SD
+EkolHaber.tr
+EkolSportsTV.tr
+ElsharqTV.tr@SD
+ErzurumWebTV.tr@SD
+EuroD.tr
+Film Screen.tr
+FinansTurkTV.tr@SD
+FlashHaber.tr
+FortunaTV.tr@SD
+GZT.tr@SD
+GrandCinema.tr@SD
+GuneydoguTV.tr@SD
+HTSpor.tr
+Haber61TV.tr@SD
+HaberGlobal.tr
+HalkTV.tr
+HunatTV.tr@SD
+IcelTV.tr@SD
+IlkeTV.tr@HD
+Isvicre.tr
+Kanal12.tr@SD
+Kanal15.tr@SD
+Kanal23.tr@SD
+Kanal26.tr@SD
+Kanal3.tr@SD
+Kanal32.tr@SD
+Kanal33.tr@SD
+Kanal58.tr@SD
+Kanal7.tr
+KanalFirat.tr@SD
+KanalPlus.tr
+KanalUrfa.tr
+KanalV.tr@SD
+KayTV.tr@SD
+KentTurk.tr@SD
+KocaeliTV.tr@SD
+KonyaOlayTV.tr@SD
+KralPopTV.tr
+Lalegul.tr
+LifeTV.tr@SD
+LuysTV.tr@SD
+MC.tr
+MELTEM.tr
+MTurkTV.tr@SD
+MaviKaradenizTV.tr@SD
+MekameleenTV.tr@SD
+MercanTV.tr@SD
+Metropol.tr
+--- ornek programme:
+  <programme start="20261012060000 +0300" stop="20261012100000 +0300" channel="KABLO.INFO.tr">
+  <programme start="20261012100000 +0300" stop="20261012140000 +0300" channel="KABLO.INFO.tr">
+  <programme start="20261012140000 +0300" stop="20261012180000 +0300" channel="KABLO.INFO.tr">
+  <programme start="20261012060000 +0300" stop="20261012100000 +0300" channel="KABLO.INFO.tr">
+    <title lang="tr">KABLO İnfo</title>
+  </programme>
+  <programme start="20261012100000 +0300" stop="20261012140000 +0300" channel="KABLO.INFO.tr">
+    <title lang="tr">KABLO İnfo</title>
+--- ilk/son tarih:
+   1218 start="20261012
+   5112 start="20261013
+   5121 start="20261014
+   3913 start="20261015
+     67 start="20261016
