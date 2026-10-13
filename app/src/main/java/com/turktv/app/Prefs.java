@@ -38,6 +38,15 @@ final class Prefs {
     static long listUpdated(Context c) { return p(c).getLong("listUpdated", 0); }
     static void listUpdated(Context c, long v) { p(c).edit().putLong("listUpdated", v).apply(); }
 
+    static String playlistUrl(Context c) { return p(c).getString("playlistUrl", ""); }
+    static void playlistUrl(Context c, String v) { p(c).edit().putString("playlistUrl", v).apply(); }
+
+    static int playlistTotal(Context c) { return p(c).getInt("playlistTotal", 0); }
+    static void playlistTotal(Context c, int v) { p(c).edit().putInt("playlistTotal", v).apply(); }
+
+    static long playlistUpdated(Context c) { return p(c).getLong("playlistUpdated", 0); }
+    static void playlistUpdated(Context c, long v) { p(c).edit().putLong("playlistUpdated", v).apply(); }
+
     static boolean isFavorite(Context c, Channel ch) {
         return p(c).getStringSet("favs", new HashSet<>()).contains(ch.youtube);
     }

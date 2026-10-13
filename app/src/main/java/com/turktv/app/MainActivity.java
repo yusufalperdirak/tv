@@ -50,6 +50,8 @@ public class MainActivity extends Activity {
     private LinearLayout railHome, railFav;
     private TextView clockLocal, clockTr, dateText;
     private YtPlayer preview;
+    private StreamPlayer streamPreview;
+    private int builtPlaylistVersion;
     private TextView previewMsg, liveBadge, soundBadge;
     private TextView infoStatus, infoNum, infoName;
     private LinearLayout btnFav;
@@ -70,6 +72,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         channels = Channel.loadAll(this);
+        Playlist.ensureLoaded(this);
+        builtPlaylistVersion = Playlist.version();
         selected = channels.get(clamp(Prefs.last(this)));
 
         buildUi();
@@ -84,6 +88,9 @@ public class MainActivity extends Activity {
                     Toast.makeText(this, "Kanal listesi güncellendi", Toast.LENGTH_SHORT).show();
                     recreate();
                 }
+            });
+            Playlist.refresh(this, channels, (changed, err) -> {
+                if (changed && !isFinishing()) recreate();
             });
             if (Prefs.openLast(this)) openChannel(selected);
         }
@@ -168,6 +175,9 @@ public class MainActivity extends Activity {
         pv.setClipToOutline(true);
         preview = new YtPlayer(this);
         pv.addView(preview.web, new FrameLayout.LayoutParams(-1, -1));
+        streamPreview = new StreamPlayer(this);
+        streamPreview.view.setVisibility(View.GONE);
+        pv.addView(streamPreview.view, new FrameLayout.LayoutParams(-1, -1));
         previewMsg = Ui.text(this, "", 13, Ui.REGULAR, 0xFF8892A3);
         previewMsg.setGravity(Gravity.CENTER);
         previewMsg.setBackgroundColor(0xFF161B24);
@@ -187,7 +197,7 @@ public class MainActivity extends Activity {
         pv.addView(soundBadge, sbLp);
         hero.addView(pv, new LinearLayout.LayoutParams(px(384), px(216)));
 
-        preview.setListener(new YtPlayer.Listener() {
+        YtPlayer.Listener previewListener = new YtPlayer.Listener() {
             @Override
             public void onState(int state) {
                 if (state == 1) {
@@ -202,7 +212,9 @@ public class MainActivity extends Activity {
                 previewMsg.setVisibility(View.VISIBLE);
                 liveBadge.setVisibility(View.GONE);
             }
-        });
+        };
+        preview.setListener(previewListener);
+        streamPreview.setListener(previewListener);
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -507,6 +519,7 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(previewRunnable);
         previewToken++;
         preview.stop();
+        streamPreview.stop();
         liveBadge.setVisibility(View.GONE);
         previewMsg.setText("Önizleme yükleniyor…");
         previewMsg.setVisibility(View.VISIBLE);
@@ -516,6 +529,14 @@ public class MainActivity extends Activity {
     private void startPreview() {
         final Channel c = selected;
         final int t = ++previewToken;
+        if (Playlist.has(c)) {
+            preview.web.setVisibility(View.GONE);
+            streamPreview.view.setVisibility(View.VISIBLE);
+            streamPreview.play(Playlist.entries(c).get(0), !Prefs.previewSound(this));
+            return;
+        }
+        streamPreview.view.setVisibility(View.GONE);
+        preview.web.setVisibility(View.VISIBLE);
         Live.find(c, false, (ch, id) -> {
             if (t != previewToken || !resumed) return;
             onStatus(ch);
@@ -557,7 +578,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (Channel.loadAll(this) != channels) { // kanal listesi güncellendi
+        if (Channel.loadAll(this) != channels || Playlist.version() != builtPlaylistVersion) { // liste güncellendi
             recreate();
             return;
         }
@@ -585,12 +606,14 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(clockTick);
         previewToken++;
         preview.stop();
+        streamPreview.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
         preview.destroy();
+        streamPreview.release();
         super.onDestroy();
     }
 }

@@ -1,6 +1,8 @@
 package com.turktv.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.widget.EditText;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -33,6 +35,7 @@ public class SettingsActivity extends Activity {
         View track, knob;
         LinearLayout view;
         TextView titleView;
+        boolean overlayNote;
     }
 
     private final List<Row> rows = new ArrayList<>();
@@ -103,6 +106,17 @@ public class SettingsActivity extends Activity {
         // --- Satırlar
         Row r;
 
+        final Row pl = new Row();
+        pl.title = "Yayın listesi (M3U)";
+        pl.sub = playlistSub();
+        pl.descTitle = "Kendi yayın listen";
+        pl.desc = "IPTV aboneliğinin M3U liste linkini ekle. Listede bulunan kanallar bu adresten, "
+                + "bulunmayanlar YouTube'dan oynatılır. Bir adres çalışmazsa listedeki yedek adres denenir.";
+        pl.icon = R.drawable.ic_list;
+        pl.action = () -> editPlaylist(pl);
+        addRow(list, pl);
+        pl.valueView.setText(Prefs.playlistUrl(this).isEmpty() ? "Ekle  ›" : "Değiştir  ›");
+
         r = new Row();
         r.title = "TV açılınca otomatik başlat";
         r.sub = "Televizyon açıldığında uygulama direkt açılır";
@@ -110,6 +124,7 @@ public class SettingsActivity extends Activity {
         r.desc = "Televizyonu açtığında başka hiçbir şeye dokunmadan TV uygulaması açılır. "
                 + "\"Son izlenen kanalla aç\" da açıksa doğrudan son kanal oynamaya başlar.";
         r.icon = R.drawable.ic_power;
+        r.overlayNote = true;
         r.toggleGet = () -> Prefs.autostart(this);
         r.toggleSet = v -> {
             Prefs.autostart(this, v);
@@ -191,6 +206,82 @@ public class SettingsActivity extends Activity {
         setContentView(root);
         rows.get(0).view.requestFocus();
         showAside(rows.get(0));
+    }
+
+    private String playlistSub() {
+        if (Prefs.playlistUrl(this).isEmpty()) return "Ayarlanmadı · eklemek için OK";
+        String s = Playlist.matched() + " kanal eşleşti";
+        int total = Prefs.playlistTotal(this);
+        if (total > 0) s += " (listede " + total + " kayıt)";
+        long t = Prefs.playlistUpdated(this);
+        if (t > 0) s += " · " + new SimpleDateFormat("d MMM HH:mm", Actions.TR).format(new Date(t));
+        return s;
+    }
+
+    private void editPlaylist(final Row row) {
+        final LinkServer server = new LinkServer();
+        final AlertDialog[] dlg = new AlertDialog[1];
+        boolean serving = server.start(url -> {
+            if (dlg[0] != null) dlg[0].dismiss();
+            savePlaylist(url, row);
+        });
+        String ip = LinkServer.localIp();
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(px(28), px(12), px(28), 0);
+        String help = (serving && ip != null)
+                ? "Uzun linki kumandayla yazmak yerine: telefonun aynı Wi-Fi'dayken tarayıcıda şu adresi aç ve linki oraya yapıştır:"
+                : "M3U liste linkini aşağıya yaz:";
+        TextView t1 = Ui.text(this, help, 16, Ui.REGULAR, Ui.SOFT);
+        t1.setLineSpacing(px(4), 1f);
+        box.addView(t1);
+        if (serving && ip != null) {
+            TextView addr = Ui.text(this, "http://" + ip + ":" + server.port(), 30, Ui.BOLD, Ui.TEXT);
+            addr.setPadding(0, px(12), 0, px(16));
+            box.addView(addr);
+            box.addView(Ui.text(this, "veya buraya yaz:", 14, Ui.REGULAR, Ui.MUTED));
+        }
+        final EditText et = new EditText(this);
+        et.setSingleLine(true);
+        et.setHint("http://...");
+        et.setText(Prefs.playlistUrl(this));
+        box.addView(et);
+
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle("Yayın listesi (M3U)")
+                .setView(box)
+                .setPositiveButton("Kaydet", (d, w) -> savePlaylist(et.getText().toString().trim(), row))
+                .setNegativeButton("İptal", null)
+                .setOnDismissListener(d -> server.stop());
+        if (!Prefs.playlistUrl(this).isEmpty()) {
+            b.setNeutralButton("Listeyi kaldır", (d, w) -> savePlaylist("", row));
+        }
+        dlg[0] = b.show();
+    }
+
+    private void savePlaylist(String url, final Row row) {
+        if (!url.isEmpty() && !url.startsWith("http://") && !url.startsWith("https://")) {
+            Toast.makeText(this, "Link http:// veya https:// ile başlamalı", Toast.LENGTH_LONG).show();
+            return;
+        }
+        Prefs.playlistUrl(this, url);
+        if (url.isEmpty()) {
+            Playlist.clear(this);
+            row.subView.setText(playlistSub());
+            row.valueView.setText("Ekle  ›");
+            Toast.makeText(this, "Liste kaldırıldı, kanallar YouTube'dan oynatılacak", Toast.LENGTH_LONG).show();
+            return;
+        }
+        row.valueView.setText("Yükleniyor…");
+        row.subView.setText("Liste indiriliyor ve kanallar eşleştiriliyor…");
+        Playlist.refresh(this, Channel.loadAll(this), (changed, err) -> {
+            row.valueView.setText("Değiştir  ›");
+            row.subView.setText(playlistSub());
+            String m = err != null ? err
+                    : Playlist.matched() + " kanal listenle eşleşti. Bu kanallar artık kendi listenden oynatılacak.";
+            Toast.makeText(this, m, Toast.LENGTH_LONG).show();
+        });
     }
 
     private String playerValue() {
@@ -280,11 +371,14 @@ public class SettingsActivity extends Activity {
         asideIcon.setImageResource(r.icon);
         asideTitle.setText(r.descTitle);
         asideDesc.setText(r.desc);
-        if (r == rows.get(0)) {
+        if (r.overlayNote) {
             asideNote.setText(Actions.hasOverlay(this)
                     ? "Gerekli izin verilmiş, otomatik açılış hazır."
                     : "Bazı televizyonlarda \"Diğer uygulamaların üzerinde göster\" izni gerekir. "
                     + "Ayarı açtığında izin ekranı gelir; bir kere onaylaman yeterli.");
+            asideNote.setVisibility(View.VISIBLE);
+        } else if (r.action != null && r.descTitle.equals("Kendi yayın listen")) {
+            asideNote.setText("Link yalnızca bu TV'de saklanır; GitHub'a veya başka bir yere gönderilmez.");
             asideNote.setVisibility(View.VISIBLE);
         } else {
             asideNote.setVisibility(View.GONE);

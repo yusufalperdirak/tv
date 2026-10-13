@@ -28,8 +28,10 @@ public class Channel {
     public final String youtube;   // örn. "@trthaber"
     public final String appQuery;  // Play Store'da aranacak resmi uygulama (boş olabilir)
     public final int color;
+    public final List<String> aliases; // M3U listesinde aranacak diğer adlar
 
-    private Channel(int index, String name, String category, String youtube, String appQuery, int color) {
+    private Channel(int index, String name, String category, String youtube, String appQuery, int color,
+                    List<String> aliases) {
         this.index = index;
         this.number = index + 1;
         this.name = name;
@@ -37,6 +39,7 @@ public class Channel {
         this.youtube = youtube;
         this.appQuery = appQuery;
         this.color = color;
+        this.aliases = aliases;
     }
 
     static final String LOCAL_FILE = "channels.json";
@@ -87,12 +90,16 @@ public class Channel {
             } catch (IllegalArgumentException e) {
                 color = 0xFF37474F;
             }
+            List<String> aliases = new ArrayList<>();
+            JSONArray al = o.optJSONArray("aliases");
+            if (al != null) for (int j = 0; j < al.length(); j++) aliases.add(al.getString(j));
             list.add(new Channel(list.size(),
                     o.getString("name"),
                     o.optString("category", "Diğer"),
                     o.getString("youtube"),
                     o.optString("app", ""),
-                    darken(color)));
+                    darken(color),
+                    aliases));
         }
         return list;
     }

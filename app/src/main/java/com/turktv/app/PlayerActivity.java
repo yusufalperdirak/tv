@@ -41,6 +41,10 @@ public class PlayerActivity extends Activity {
 
     // oynatma durumu
     private YtPlayer player;
+    private StreamPlayer stream;
+    private boolean usingStream; // şu an kendi M3U listenden mi oynuyor
+    private int candIdx;         // listedeki kaçıncı adres deneniyor
+    private int candTries;       // aynı adres için yeniden deneme sayısı
     private int resolveToken;
     private int state = -1;
     private long stateSince;
@@ -96,9 +100,13 @@ public class PlayerActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
+        Playlist.ensureLoaded(this);
         player = new YtPlayer(this);
         root.addView(player.web, new FrameLayout.LayoutParams(-1, -1));
-        player.setListener(new YtPlayer.Listener() {
+        stream = new StreamPlayer(this);
+        stream.view.setVisibility(View.GONE);
+        root.addView(stream.view, new FrameLayout.LayoutParams(-1, -1));
+        YtPlayer.Listener listener = new YtPlayer.Listener() {
             @Override
             public void onState(int s) {
                 onPlayerState(s);
@@ -108,7 +116,9 @@ public class PlayerActivity extends Activity {
             public void onError(int code) {
                 onPlayerError(code);
             }
-        });
+        };
+        player.setListener(listener);
+        stream.setListener(listener);
 
         sink = new View(this);
         sink.setFocusable(true);
@@ -355,6 +365,8 @@ public class PlayerActivity extends Activity {
     /** Kullanıcının kanal değiştirmesi. */
     private void changeChannel(int i) {
         retries = 0;
+        candIdx = 0;
+        candTries = 0;
         playChannel(i, false);
     }
 
@@ -366,16 +378,31 @@ public class PlayerActivity extends Activity {
 
         hideError();
         player.stop();
+        stream.stop();
         userPaused = false;
         setState(-1);
-        showMsg(retries > 0 ? "Bağlantı yeniden kuruluyor… (" + retries + "/" + MAX_RETRIES + ")" : "Canlı yayın aranıyor…");
+
+        // 1) Kendi M3U listende bu kanal varsa oradan oynat
+        final List<Playlist.Entry> cands = Playlist.entries(c);
+        usingStream = candIdx < cands.size();
         updateOsd();
         showOsd();
+        if (usingStream) {
+            showMsg(candIdx > 0 || candTries > 0 ? "Bağlantı yeniden kuruluyor…" : "Yükleniyor…");
+            player.web.setVisibility(View.GONE);
+            stream.view.setVisibility(View.VISIBLE);
+            stream.play(cands.get(candIdx), false);
+            return;
+        }
 
+        // 2) Yoksa (veya listedeki adresler çalışmadıysa) YouTube
+        stream.view.setVisibility(View.GONE);
+        player.web.setVisibility(View.VISIBLE);
+        showMsg(retries > 0 ? "Bağlantı yeniden kuruluyor… (" + retries + "/" + MAX_RETRIES + ")" : "Canlı yayın aranıyor…");
         Live.find(c, force, (ch, id) -> {
             if (t != resolveToken || stopped) return;
             if (id == null) {
-                showError(ERR_OFFLINE);
+                showError(cands.isEmpty() ? ERR_OFFLINE : ERR_FAILED);
             } else {
                 setState(-1);
                 player.play(id, false);
@@ -415,6 +442,17 @@ public class PlayerActivity extends Activity {
     /** Otomatik yeniden bağlanma. */
     private void reconnect() {
         if (stopped || sleeping) return;
+        if (usingStream) {
+            // önce aynı adresi bir kez daha dene, sonra listedeki yedek adrese, en son YouTube'a geç
+            if (candTries < 1) {
+                candTries++;
+            } else {
+                candTries = 0;
+                candIdx++;
+            }
+            playChannel(index, false);
+            return;
+        }
         retries++;
         if (retries > MAX_RETRIES) {
             showError(ERR_FAILED);
@@ -437,7 +475,9 @@ public class PlayerActivity extends Activity {
             if (errorShown && errorKind != ERR_EMBED && now - errorSince > RECHECK_MS) {
                 errorSince = now;
                 final int t = resolveToken;
-                Live.find(cur(), true, (ch, id) -> {
+                if (Playlist.has(cur())) {
+                    changeChannel(index); // listedeki adresleri baştan dene
+                } else Live.find(cur(), true, (ch, id) -> {
                     if (id != null && t == resolveToken && !stopped && errorPanel.getVisibility() == View.VISIBLE) {
                         changeChannel(index);
                     }
@@ -474,6 +514,7 @@ public class PlayerActivity extends Activity {
         errorKind = kind;
         errorSince = System.currentTimeMillis();
         player.stop();
+        stream.stop();
         hideMsg();
         String text;
         if (kind == ERR_EMBED) {
@@ -506,7 +547,7 @@ public class PlayerActivity extends Activity {
         osdNum.setBackground(Ui.rounded(this, c.color, 16));
         osdName.setText(c.name);
         osdLive.setText("● CANLI");
-        osdSub.setText(c.category + "  ·  Uygulama içi oynatıcı");
+        osdSub.setText(c.category + (usingStream ? "  ·  Kendi listen" : "  ·  YouTube"));
         Channel next = channels.get(wrap(index + 1));
         Channel prev = channels.get(wrap(index - 1));
         nextLabel.setText(next.number + " · " + next.name);
@@ -670,6 +711,7 @@ public class PlayerActivity extends Activity {
         sleeping = true;
         resolveToken++;
         player.stop();
+        stream.stop();
         hideZap();
         hideError();
         hideMsg();
@@ -780,7 +822,8 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
                 userPaused = state == 1;
-                player.toggle();
+                if (usingStream) stream.toggle();
+                else player.toggle();
                 showOsd();
                 return true;
             case KeyEvent.KEYCODE_INFO:
@@ -836,12 +879,14 @@ public class PlayerActivity extends Activity {
         resolveToken++;
         ui.removeCallbacks(tick);
         player.stop();
+        stream.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
         player.destroy();
+        stream.release();
         super.onDestroy();
     }
 }

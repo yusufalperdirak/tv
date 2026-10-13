@@ -38,6 +38,7 @@ final class Live {
     private static final Handler ui = new Handler(Looper.getMainLooper());
 
     static int status(Channel c) {
+        if (Playlist.has(c)) return LIVE; // kendi listende varsa yayında kabul edilir
         Integer s = status.get(c.youtube);
         return s == null ? UNKNOWN : s;
     }
@@ -66,7 +67,7 @@ final class Live {
 
     /** Tüm kanalların durumunu arka planda kontrol eder. */
     static void checkAll(List<Channel> list, Callback cb) {
-        for (Channel c : list) find(c, false, cb);
+        for (Channel c : list) if (!Playlist.has(c)) find(c, false, cb);
     }
 
     private static String resolve(Channel c) {
