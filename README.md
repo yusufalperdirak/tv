@@ -21,7 +21,7 @@ Bu uygulama Yusuf Alper Dırak tarafından oluşturulmuştur.
 ## Kumanda
 | Tuş | Ana ekran | İzlerken |
 |---|---|---|
-| ◀ ▶ | Kanallar arasında gez | 10 sn geri / ileri sar |
+| ◀ ▶ | Kanallar arasında gez | 10 sn geri / ileri sar · basılı tut: 1 dk |
 | ▲ ▼ | Kategoriler arasında gez | Kanal değiştir |
 | OK | İzle | Menü (♥, Yenile, Uyku, Kanal listesi, Canlıya dön) |
 | OK basılı tut | Favorilere ekle / çıkar · Favoriler satırında: sırala | — |

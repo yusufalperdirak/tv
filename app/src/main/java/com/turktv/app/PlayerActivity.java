@@ -200,18 +200,25 @@ public class PlayerActivity extends Activity {
                 new int[]{0xEB000000, 0xB8000000, 0x00000000}));
         osd.addView(scrim, new FrameLayout.LayoutParams(-1, px(300), Gravity.BOTTOM));
 
+        // Alt panel: üstte bilgi şeridi (logo · ad/rehber · butonlar), altında tam genişlikte
+        // ilerleme / zaman çizgisi ve ipucu. Hiçbir satır ekran kenar boşluğunu aşamaz.
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setClipChildren(false);
+        FrameLayout.LayoutParams pLp = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
+        pLp.setMargins(px(Ui.edgeX(this) + 12), 0, px(Ui.edgeX(this) + 12), px(Ui.edgeY(this) + 6));
+        osd.addView(panel, pLp);
+
         LinearLayout strip = new LinearLayout(this);
         strip.setOrientation(LinearLayout.HORIZONTAL);
-        strip.setGravity(Gravity.BOTTOM);
+        strip.setGravity(Gravity.CENTER_VERTICAL);
         strip.setClipChildren(false);
-        FrameLayout.LayoutParams sLp = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-        sLp.setMargins(px(Ui.edgeX(this)), 0, px(Ui.edgeX(this)), px(Ui.edgeY(this) + 8));
-        osd.addView(strip, sLp);
+        panel.addView(strip, new LinearLayout.LayoutParams(-1, -2));
 
         logoSlot = new FrameLayout(this);
-        strip.addView(logoSlot, Ui.margins(this, px(112), px(66), 0, 0, 28, 0));
+        strip.addView(logoSlot, Ui.margins(this, px(112), px(66), 0, 0, 24, 0));
 
-        // Orta: kanal adı, şimdi/sonra, ilerleme
+        // Orta: kanal adı, şimdi/sonra
         LinearLayout mid = new LinearLayout(this);
         mid.setOrientation(LinearLayout.VERTICAL);
         strip.addView(mid, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -221,18 +228,19 @@ public class PlayerActivity extends Activity {
         r1.setGravity(Gravity.CENTER_VERTICAL);
         osdNum = Ui.text(this, "", 20, Ui.MEDIUM, 0xFFA8B1BF);
         r1.addView(osdNum, Ui.margins(this, -2, -2, 0, 0, 14, 0));
-        osdName = Ui.text(this, "", 34, Ui.BOLD, Ui.TEXT);
+        osdName = Ui.text(this, "", 32, Ui.BOLD, Ui.TEXT);
         osdName.setSingleLine(true);
         osdName.setEllipsize(TextUtils.TruncateAt.END);
-        osdName.setMaxWidth(px(420));
+        osdName.setMaxWidth(px(360));
         r1.addView(osdName);
         osdLoading = Ui.text(this, "", 13, Ui.BOLD, 0xFFE3E7ED);
         osdLoading.setPadding(px(11), px(5), px(11), px(5));
         osdLoading.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
         r1.addView(osdLoading, Ui.margins(this, -2, -2, 14, 0, 0, 0));
-        liveBadge = Ui.text(this, "", 13, Ui.BOLD, Ui.TEXT);
-        liveBadge.setPadding(px(11), px(5), px(11), px(5));
-        liveBadge.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
+        liveBadge = Ui.text(this, "", 14, Ui.BOLD, Ui.LIVE);
+        liveBadge.setLetterSpacing(0.08f);
+        liveBadge.setPadding(px(12), px(5), px(12), px(5));
+        liveBadge.setBackground(Ui.rounded(this, 0x33E30A17, 12));
         liveBadge.setVisibility(View.GONE);
         r1.addView(liveBadge, Ui.margins(this, -2, -2, 14, 0, 0, 0));
         mid.addView(r1);
@@ -246,7 +254,7 @@ public class PlayerActivity extends Activity {
         nowTitle = Ui.text(this, "", 17, Ui.BOLD, Ui.TEXT);
         nowTitle.setSingleLine(true);
         nowTitle.setEllipsize(TextUtils.TruncateAt.END);
-        nowTitle.setMaxWidth(px(380));
+        nowTitle.setMaxWidth(px(300));
         epgRow.addView(nowTitle);
         nowTime = Ui.text(this, "", 13, Ui.REGULAR, 0xFFA8B1BF);
         epgRow.addView(nowTime, Ui.margins(this, -2, -2, 10, 0, 14, 1));
@@ -256,71 +264,23 @@ public class PlayerActivity extends Activity {
         nextTitle = Ui.text(this, "", 15, Ui.MEDIUM, Ui.SOFT);
         nextTitle.setSingleLine(true);
         nextTitle.setEllipsize(TextUtils.TruncateAt.END);
-        nextTitle.setMaxWidth(px(300));
+        nextTitle.setMaxWidth(px(220));
         epgRow.addView(nextTitle);
-        mid.addView(epgRow, Ui.margins(this, -1, -2, 0, 10, 0, 0));
+        mid.addView(epgRow, Ui.margins(this, -1, -2, 0, 8, 0, 0));
 
-        FrameLayout bar = new FrameLayout(this);
-        bar.setBackground(Ui.rounded(this, 0x33F2F4F7, 2));
-        progressFill = new View(this);
-        progressFill.setBackground(Ui.rounded(this, Ui.TEXT, 2));
-        bar.addView(progressFill, new FrameLayout.LayoutParams(0, -1));
-        progressBar = bar;
-        mid.addView(bar, Ui.margins(this, -1, px(4), 0, 12, 40, 0));
-
-        tsRow = new LinearLayout(this);
-        tsRow.setOrientation(LinearLayout.HORIZONTAL);
-        tsRow.setGravity(Gravity.CENTER_VERTICAL);
-        tsLeft = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
-        tsLeft.setMinWidth(px(64));
-        tsRow.addView(tsLeft);
-        tsTrack = new FrameLayout(this);
-        tsTrack.setClipChildren(false);
-        View base = new View(this);
-        base.setBackground(Ui.rounded(this, 0x33F2F4F7, 3));
-        FrameLayout.LayoutParams baseLp = new FrameLayout.LayoutParams(-1, px(6), Gravity.CENTER_VERTICAL);
-        tsTrack.addView(base, baseLp);
-        tsFill = new View(this);
-        tsFill.setBackground(Ui.rounded(this, 0xD9F2F4F7, 3));
-        tsTrack.addView(tsFill, new FrameLayout.LayoutParams(0, px(6), Gravity.CENTER_VERTICAL));
-        tsKnob = new View(this);
-        android.graphics.drawable.GradientDrawable kd = new android.graphics.drawable.GradientDrawable();
-        kd.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        kd.setColor(Ui.WHITE);
-        tsKnob.setBackground(kd);
-        tsKnob.setElevation(px(4));
-        tsTrack.addView(tsKnob, new FrameLayout.LayoutParams(px(16), px(16), Gravity.CENTER_VERTICAL));
-        tsRow.addView(tsTrack, Ui.margins(this, 0, px(20), 12, 0, 12, 0));
-        ((LinearLayout.LayoutParams) tsTrack.getLayoutParams()).weight = 1f;
-        tsLive = Ui.text(this, "CANLI", 12, Ui.BOLD, Ui.LIVE);
-        tsLive.setLetterSpacing(0.1f);
-        tsLive.setPadding(px(10), px(4), px(10), px(4));
-        tsLive.setBackground(Ui.rounded(this, 0x24F2F4F7, 10));
-        tsRow.addView(tsLive);
-        tsRow.setVisibility(View.GONE);
-        mid.addView(tsRow, Ui.margins(this, -1, -2, 0, 14, 40, 0));
-
-        // Sağ: butonlar
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setGravity(Gravity.END);
-        right.setClipChildren(false);
+        // Sağ: yalnızca yuvarlak simge butonlar (sabit, dar genişlik)
         LinearLayout btns = new LinearLayout(this);
         btns.setOrientation(LinearLayout.HORIZONTAL);
+        btns.setGravity(Gravity.CENTER_VERTICAL);
         btns.setClipChildren(false);
-        btnLive = Ui.button(this, 0, "Canlıya dön", 48, 0x24F2F4F7);
-        for (int i = 0; i < btnLive.getChildCount(); i++) {
-            if (btnLive.getChildAt(i) instanceof TextView) {
-                SpannableString ls = new SpannableString("●  Canlıya dön");
-                ls.setSpan(new ForegroundColorSpan(Ui.LIVE), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                ((TextView) btnLive.getChildAt(i)).setText(ls);
-            }
-        }
+        btns.setClipToPadding(false);
+        btns.setPadding(px(6), px(6), px(6), px(6));
+        btnLive = Ui.button(this, R.drawable.ic_golive, null, 46, 0x40E30A17);
         btnLive.setOnClickListener(v -> goLive());
         btnLive.setVisibility(View.GONE);
         btns.addView(btnLive);
         ((LinearLayout.LayoutParams) btnLive.getLayoutParams()).setMargins(0, 0, px(10), 0);
-        btnFav = Ui.button(this, R.drawable.ic_heart, null, 48, 0x24F2F4F7);
+        btnFav = Ui.button(this, R.drawable.ic_heart, null, 46, 0x24F2F4F7);
         btnFav.setOnClickListener(v -> {
             boolean now = Prefs.toggleFavorite(this, cur());
             Toast.makeText(this, cur().name + (now ? " favorilere eklendi" : " favorilerden çıkarıldı"), Toast.LENGTH_SHORT).show();
@@ -328,19 +288,63 @@ public class PlayerActivity extends Activity {
             showOsd();
         });
         btns.addView(btnFav);
-        btnRefresh = Ui.button(this, R.drawable.ic_refresh, "Yenile", 48, 0x24F2F4F7);
+        btnRefresh = Ui.button(this, R.drawable.ic_refresh, null, 46, 0x24F2F4F7);
         btnRefresh.setOnClickListener(v -> refresh());
         addBtn(btns, btnRefresh);
-        btnSleep = Ui.button(this, R.drawable.ic_moon, null, 48, 0x24F2F4F7);
+        btnSleep = Ui.button(this, R.drawable.ic_moon, null, 46, 0x24F2F4F7);
         btnSleep.setOnClickListener(v -> cycleSleep());
         addBtn(btns, btnSleep);
-        btnList = Ui.button(this, R.drawable.ic_list, null, 48, 0x24F2F4F7);
+        btnList = Ui.button(this, R.drawable.ic_list, null, 46, 0x24F2F4F7);
         btnList.setOnClickListener(v -> showZap());
         addBtn(btns, btnList);
-        right.addView(btns);
+        strip.addView(btns, Ui.margins(this, -2, -2, 16, 0, 0, 0));
+
+        // Program ilerlemesi (tam genişlik)
+        FrameLayout bar = new FrameLayout(this);
+        bar.setBackground(Ui.rounded(this, 0x33F2F4F7, 2));
+        progressFill = new View(this);
+        progressFill.setBackground(Ui.rounded(this, Ui.TEXT, 2));
+        bar.addView(progressFill, new FrameLayout.LayoutParams(0, -1));
+        progressBar = bar;
+        panel.addView(bar, Ui.margins(this, -1, px(4), 0, 14, 0, 0));
+
+        // Geri sarınca: zaman çizgisi (tam genişlik)
+        tsRow = new LinearLayout(this);
+        tsRow.setOrientation(LinearLayout.HORIZONTAL);
+        tsRow.setGravity(Gravity.CENTER_VERTICAL);
+        tsLeft = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
+        tsLeft.setMinWidth(px(60));
+        tsRow.addView(tsLeft);
+        tsTrack = new FrameLayout(this);
+        tsTrack.setClipChildren(false);
+        View base = new View(this);
+        base.setBackground(Ui.rounded(this, 0x33F2F4F7, 3));
+        tsTrack.addView(base, new FrameLayout.LayoutParams(-1, px(6), Gravity.CENTER_VERTICAL));
+        tsFill = new View(this);
+        tsFill.setBackground(Ui.rounded(this, 0xD9F2F4F7, 3));
+        tsTrack.addView(tsFill, new FrameLayout.LayoutParams(0, px(6), Gravity.CENTER_VERTICAL));
+        tsKnob = new View(this);
+        GradientDrawable kd = new GradientDrawable();
+        kd.setShape(GradientDrawable.OVAL);
+        kd.setColor(Ui.WHITE);
+        tsKnob.setBackground(kd);
+        tsKnob.setElevation(px(4));
+        tsTrack.addView(tsKnob, new FrameLayout.LayoutParams(px(16), px(16), Gravity.CENTER_VERTICAL));
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, px(20), 1f);
+        tLp.setMargins(px(10), 0, px(12), 0);
+        tsRow.addView(tsTrack, tLp);
+        tsLive = Ui.text(this, "●  CANLI", 13, Ui.BOLD, Ui.LIVE);
+        tsLive.setLetterSpacing(0.08f);
+        tsLive.setPadding(px(10), px(4), px(10), px(4));
+        tsLive.setBackground(Ui.rounded(this, 0x33E30A17, 10));
+        tsRow.addView(tsLive);
+        tsRow.setVisibility(View.GONE);
+        panel.addView(tsRow, Ui.margins(this, -1, -2, 0, 12, 0, 0));
+
         hint = Ui.text(this, "", 13, Ui.MEDIUM, Ui.MUTED);
-        right.addView(hint, Ui.margins(this, -2, -2, 0, 12, 0, 0));
-        strip.addView(right, Ui.margins(this, -2, -2, 24, 0, 0, 0));
+        hint.setSingleLine(true);
+        hint.setEllipsize(TextUtils.TruncateAt.END);
+        panel.addView(hint, Ui.margins(this, -1, -2, 0, 10, 0, 0));
 
         root.addView(osd, new FrameLayout.LayoutParams(-1, -1));
     }
@@ -706,14 +710,29 @@ public class PlayerActivity extends Activity {
     /** Tuş olayından sarma: tek basış 10 sn, basılı tutunca 1 dk (çok hızlı tekrarlar seyreltilir). */
     private void seekKey(KeyEvent e, int dir) {
         if (e.getRepeatCount() > 0) {
+            heldSeek = true;
             long now = System.currentTimeMillis();
             if (now - lastRepeatSeek < 450) return;
             lastRepeatSeek = now;
             seek(dir, 60);
         } else {
+            heldSeek = false;
+            seekDir = dir;
             seek(dir, 10);
         }
     }
+
+    /** Tekrar olayı göndermeyen kumandalar için: tuş uzun basılıp bırakılınca 1 dk'ya tamamla. */
+    private boolean seekKeyUp(KeyEvent e) {
+        if (seekDir == 0) return false;
+        int dir = seekDir;
+        seekDir = 0;
+        if (!heldSeek && e.getEventTime() - e.getDownTime() >= 600) seek(dir, 50);
+        return true;
+    }
+
+    private int seekDir;
+    private boolean heldSeek;
 
     /** dir: -1 geri, +1 ileri; step: saniye. */
     private void seek(int dir, int step) {
@@ -791,7 +810,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void updateHint() {
-        String h = "◀▶ geri/ileri sar  ·  ▲▼ kanal  ·  OK menü";
+        String h = "◀▶ 10 sn sar (basılı tut: 1 dk)  ·  ▲▼ kanal  ·  OK menü  ·  sürüm " + BuildConfig.VERSION_NAME;
         long now = System.currentTimeMillis();
         if (Prefs.sleepAt > now) h += "  ·  Uyku: " + ((Prefs.sleepAt - now + 59999) / 60000) + " dk";
         hint.setText(h);
@@ -984,8 +1003,12 @@ public class PlayerActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (e.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e);
         int k = e.getKeyCode();
+        if (e.getAction() == KeyEvent.ACTION_UP && (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT
+                || k == KeyEvent.KEYCODE_MEDIA_REWIND || k == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)) {
+            if (seekKeyUp(e)) return true;
+        }
+        if (e.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e);
         if (k == KeyEvent.KEYCODE_VOLUME_UP || k == KeyEvent.KEYCODE_VOLUME_DOWN || k == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return super.dispatchKeyEvent(e);
         }
