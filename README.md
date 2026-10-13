@@ -1,52 +1,48 @@
 # TV — Android TV uygulaması
 
-Türk kanallarının **resmi YouTube canlı yayınlarını** tek yerde toplayan, kumandayla kullanılan Android TV uygulaması. IPTV listesi kullanmaz.
-
-## Özellikler
-- **172 kanal**, kategorilere ayrılmış (Ulusal, Haber, Spor, Eğlence, Film, Belgesel & Kültür, Müzik, Çocuk, Genel, Dini, Yurt Dışı), kanal logolarıyla.
-- **Ana ekran:** küçük canlı önizleme penceresi, her kanalda *Canlı / Kapalı* etiketi, favoriler.
-- **Yenile tuşu:** yayın açılmazsa veya takılırsa tek tuşla yeniden açar. Ayrıca kendiliğinden yeniden bağlanır.
-- **Hızlı kanal listesi:** izlerken OK → soldan liste açılır, yayın arkada devam eder.
-- **Türkiye saati**, **uyku zamanlayıcısı** (30/60/90 dk), **TV açılınca otomatik başlat**, **son kanalla aç**.
-- **Kanal listesi internetten güncellenir:** `app/src/main/assets/channels.m3u` dosyasını GitHub'da düzenlemek yeterli.
-- Açılışta kısa bir yükleme ekranı.
+Türk kanallarını tek yerde toplayan, kumandayla kullanılan sade bir Android TV uygulaması.
 
 Bu uygulama Yusuf Alper Dırak tarafından oluşturulmuştur.
+
+**İndir (TV'de Downloader ile):** `github.com/yusufalperdirak/tv/releases/download/latest/TV.apk`
+
+## Özellikler
+- **172 kanal**, 11 kategori (Ulusal, Haber, Spor, Eğlence, Film, Belgesel & Kültür, Müzik, Çocuk, Genel, Dini, Yurt Dışı).
+- **Ana ekran:** seçili kanal tüm arka planda sessizce oynar; altta kategori satırları ve logolu kanal kartları (kart rengi logodan otomatik).
+- **Program rehberi:** şimdi / sonra ve ilerleme çubuğu (listedeki rehber adresinden, 6 saatte bir güncellenir).
+- **Favoriler:** ana ekranın en üstünde; sırası değiştirilebilir.
+- **Arama:** ekran klavyesiyle veya sesle.
+- **İzleme:** altta ince bilgi şeridi; ♥, Yenile, Uyku, Kanal listesi. Kanal değişirken son kare donuk bekler.
+- **Kesintiye dayanıklı oynatıcı:** önizlemeden tam ekrana kesintisiz geçiş, canlı yayının birkaç saniye gerisinden oynatma, otomatik yeniden bağlanma.
+- **Türkiye saati**, **uyku zamanlayıcısı** (30/60/90 dk), **TV açılınca otomatik başlat**, **son kanalla aç**.
+- **Kanal listesi internetten güncellenir:** `app/src/main/assets/channels.m3u` dosyasını GitHub'da düzenlemek yeterli; TV'deki uygulama bir sonraki açılışta kendini günceller.
 
 ## Kumanda
 | Tuş | Ana ekran | İzlerken |
 |---|---|---|
-| Yön tuşları | Kanallar arasında gez (önizleme değişir) | ▲▼ kanal değiştir · ◀▶ alt menü |
-| OK | Tam ekran izle | Hızlı kanal listesi |
+| ◀ ▶ | Kanallar arasında gez | Alt menü butonları |
+| ▲ ▼ | Kategoriler arasında gez | Kanal değiştir |
+| OK | İzle | Hızlı kanal listesi |
+| OK basılı tut | Favorilere ekle / çıkar · Favoriler satırında: sırala | — |
 | 0–9 | — | Kanal numarasına git |
-| CH+/CH− | — | Kanal değiştir |
+| CH+ / CH− | — | Kanal değiştir |
+| Arama tuşu | Sesli arama | — |
 | Geri | Çıkış | Ana ekrana dön |
 
-## APK'yı derleme
+## Derleme
+Her `main` güncellemesinde GitHub Actions APK'yı derler ve yukarıdaki indirme linkini günceller (~1 dk). Tüm sürümler aynı anahtarla imzalanır (`signing/tv.jks`), bu yüzden yeni sürüm TV'de eskisinin üzerine kurulur, ayarlar ve favoriler korunur.
 
-### Yol A — GitHub (önerilen, bilgisayar gerekmez)
-1. github.com'da ücretsiz hesap aç → **New repository** → adı örn. `tv`, **Public** seç → oluştur.
-2. **Add file → Upload files** ile bu klasördeki her şeyi yükle (`.github` klasörü dahil; klasörleri sürükleyip bırakabilirsin).
-3. **Actions** sekmesinde "APK derle" işi otomatik çalışır (~5 dk).
-4. Bitince işin sayfasındaki **Artifacts → TurkTV-apk** dosyasını indir, içindeki APK'yı TV'ye kur.
-
-Bu yolla derlenen uygulama, kanal listesini her açılışta **o depodaki** `app/src/main/assets/channels.json` dosyasından günceller. Yani bir kanal adresini düzeltmek için sadece GitHub'da o dosyayı düzenlemen yeterli; APK'yı yeniden kurmana gerek yok.
-
-### Yol B — Android Studio (bilgisayar)
-1. Android Studio'yu kur, bu klasörü **Open** ile aç.
-2. (İsteğe bağlı, uzaktan güncelleme için) `gradle.properties` dosyasına `channelsRepo=kullaniciadi/depoadi` satırını ekle.
-3. **Build → Build App Bundle(s) / APK(s) → Build APK(s)**.
+Android Studio ile: klasörü aç → **Build → Build APK(s)**.
 
 ## TV'ye kurulum
-1. TV'de **Ayarlar → Sistem/Cihaz tercihleri → Hakkında → Android TV OS derlemesi** üzerine 7 kez bas (geliştirici modu).
-2. Play Store'dan **Downloader** veya **Send Files to TV** uygulamasını kur, APK'yı TV'ye gönder ve aç.
-3. "Bilinmeyen kaynaklar" izni sorarsa o uygulamaya izin ver.
-
-## Otomatik açılış hakkında
-- İlk açılışta "Diğer uygulamaların üzerinde göster" izni istenir; bir kez onayla. Ekran açılmazsa: **Ayarlar → Uygulamalar → Özel uygulama erişimi → Diğer uygulamaların üzerinde göster → TV**.
-- TV bekleme modundan açıldığında ve tamamen kapanıp açıldığında uygulama kendiliğinden başlar.
-- Bazı üreticiler (özellikle yeni Google TV cihazları) bu tür otomatik başlatmayı kısıtlayabilir.
+1. **Ayarlar → Sistem → Hakkında → Android TV OS derlemesi** üzerine 7 kez bas (geliştirici modu).
+2. Play Store'dan **Downloader** uygulamasını kur, Ayarlar'dan ona "bilinmeyen kaynaklar" izni ver.
+3. Downloader'da indirme linkini aç ve **Yükle**'ye bas.
+4. İlk açılışta "Diğer uygulamaların üzerinde göster" izni istenirse onayla (otomatik açılış için).
 
 ## Kanal listesi
-`app/src/main/assets/channels.m3u` — standart M3U biçimi. Her kanal için `#EXTINF` satırında `group-title` (kategori) ve `tvg-logo` (logo), alt satırda yayın adresi bulunur. Listedeki sıra, kategori sırasıyla birlikte kanal numarasını belirler.
+`app/src/main/assets/channels.m3u` — standart M3U. Her kanalın `#EXTINF` satırında `tvg-id` (program rehberi), `tvg-logo` (logo) ve `group-title` (kategori), alt satırda yayın adresi bulunur. Listenin ilk satırındaki `url-tvg` program rehberinin adresidir.
 
+## Bilinmesi gerekenler
+- Bazı kanalların yayın adresleri üçüncü taraf sunuculardadır; bu kanallar yavaş açılabilir veya ara ara kesilebilir. Uygulama kendiliğinden yeniden bağlanır, açılamazsa **Yenile** tuşu çıkar.
+- Bazı yayınlar bulunduğun ülkeye kapalı olabilir; bunlar ana ekranda soluk görünür.
