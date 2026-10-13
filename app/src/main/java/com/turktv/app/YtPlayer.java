@@ -82,6 +82,9 @@ final class YtPlayer {
                 + "}});}"
                 + "function toggle(){if(!player||!player.getPlayerState)return;"
                 + "if(player.getPlayerState()==1){player.pauseVideo();}else{player.playVideo();}}"
+                + "function seekBy(s){if(!player||!player.getCurrentTime)return;"
+                + "player.seekTo(Math.max(0,player.getCurrentTime()+s),true);}"
+                + "function goLive(){if(!player||!player.getDuration)return;player.seekTo(player.getDuration(),true);}"
                 + "function setMuted(m){if(!player||!player.mute)return;if(m){player.mute();}else{player.unMute();player.setVolume(100);}}"
                 + "</script></body></html>";
         web.loadDataWithBaseURL(ORIGIN + "/", html, "text/html", "utf-8", null);
@@ -96,6 +99,14 @@ final class YtPlayer {
 
     void toggle() {
         web.evaluateJavascript("toggle()", null);
+    }
+
+    void seekBy(int seconds) {
+        web.evaluateJavascript("seekBy(" + seconds + ")", null);
+    }
+
+    void goLive() {
+        web.evaluateJavascript("goLive()", null);
     }
 
     void setMuted(boolean m) {

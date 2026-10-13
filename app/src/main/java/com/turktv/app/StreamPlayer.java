@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
@@ -150,9 +151,10 @@ final class StreamPlayer {
                 .setUri(c.url)
                 // canlı yayının en ucunda durma: birkaç saniye geriden oynat, takılma azalır
                 .setLiveConfiguration(new MediaItem.LiveConfiguration.Builder()
-                        .setTargetOffsetMs(10000)
-                        .setMinPlaybackSpeed(0.97f)
-                        .setMaxPlaybackSpeed(1.03f)
+                        .setTargetOffsetMs(LIVE_OFFSET_MS)
+                        // hız ayarı yok: geri sarınca kendiliğinden canlıya yetişmeye çalışmasın
+                        .setMinPlaybackSpeed(1f)
+                        .setMaxPlaybackSpeed(1f)
                         .build());
         if (c.url.toLowerCase(Actions.TR).contains("m3u8")) item.setMimeType(MimeTypes.APPLICATION_M3U8);
         return new DefaultMediaSourceFactory(http)
@@ -169,6 +171,8 @@ final class StreamPlayer {
         DefaultLoadControl load = new DefaultLoadControl.Builder()
                 // hızlı başlat (1 sn tampon), kesintide 2.5 sn biriktir, en fazla 40 sn tut
                 .setBufferDurationsMs(15000, 40000, 1000, 2500)
+                // son 2 dakikayı bellekte tut: geri sarma anında olsun
+                .setBackBuffer(120000, true)
                 .build();
         shared = new ExoPlayer.Builder(ctx, renderers).setLoadControl(load).build();
         shared.addListener(new Player.Listener() {
@@ -302,6 +306,40 @@ final class StreamPlayer {
             shared.stop();
             sharedUrl = null;
         }
+    }
+
+    // ------------------------------------------------------------------ geri sarma
+
+    static final long LIVE_OFFSET_MS = 10000;
+
+    /** Canlı yayının ne kadar gerisinde (ms, normal gecikme hariç); bilinmiyorsa -1. */
+    long behindLiveMs() {
+        if (owner != this || shared == null || !shared.isCurrentMediaItemLive()) return -1;
+        long off = shared.getCurrentLiveOffset();
+        if (off == C.TIME_UNSET) return -1;
+        return Math.max(0, off - LIVE_OFFSET_MS);
+    }
+
+    /**
+     * ms kadar ileri (+) ya da geri (−) sarar. İleri sararken canlıya ulaşırsa canlıya döner.
+     * Geri sarılacak yer kalmadıysa false döner.
+     */
+    boolean seekBy(long ms) {
+        if (owner != this || shared == null) return false;
+        long pos = shared.getCurrentPosition();
+        long dur = shared.getDuration();
+        if (ms > 0) {
+            if (dur == C.TIME_UNSET || pos + ms >= dur - LIVE_OFFSET_MS) goLive();
+            else shared.seekTo(pos + ms);
+            return true;
+        }
+        if (pos <= 500) return false;
+        shared.seekTo(Math.max(0, pos + ms));
+        return true;
+    }
+
+    void goLive() {
+        if (owner == this && shared != null) shared.seekToDefaultPosition();
     }
 
     void toggle() {

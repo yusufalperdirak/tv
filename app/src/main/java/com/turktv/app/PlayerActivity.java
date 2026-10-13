@@ -7,7 +7,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -65,7 +68,9 @@ public class PlayerActivity extends Activity {
     private TextView nowTitle, nowTime, nextTitle;
     private View progressBar, progressFill;
     private TextView hint;
-    private LinearLayout btnFav, btnRefresh, btnSleep, btnList;
+    private LinearLayout btnFav, btnRefresh, btnSleep, btnList, btnLive;
+    private TextView liveBadge;   // "● CANLI" ya da "1:20 geride"
+    private long ytBehindSec;     // YouTube'da kendi sarmalarımızdan hesaplanan gerilik
     private LinearLayout errorPanel;
     private TextView errorText;
     private LinearLayout errRefresh;
@@ -210,6 +215,11 @@ public class PlayerActivity extends Activity {
         osdLoading.setPadding(px(11), px(5), px(11), px(5));
         osdLoading.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
         r1.addView(osdLoading, Ui.margins(this, -2, -2, 14, 0, 0, 0));
+        liveBadge = Ui.text(this, "", 13, Ui.BOLD, Ui.TEXT);
+        liveBadge.setPadding(px(11), px(5), px(11), px(5));
+        liveBadge.setBackground(Ui.rounded(this, 0x24F2F4F7, 12));
+        liveBadge.setVisibility(View.GONE);
+        r1.addView(liveBadge, Ui.margins(this, -2, -2, 14, 0, 0, 0));
         mid.addView(r1);
 
         epgRow = new LinearLayout(this);
@@ -251,6 +261,11 @@ public class PlayerActivity extends Activity {
         LinearLayout btns = new LinearLayout(this);
         btns.setOrientation(LinearLayout.HORIZONTAL);
         btns.setClipChildren(false);
+        btnLive = Ui.button(this, R.drawable.ic_play, "Canlıya dön", 48, 0x24F2F4F7);
+        btnLive.setOnClickListener(v -> goLive());
+        btnLive.setVisibility(View.GONE);
+        btns.addView(btnLive);
+        ((LinearLayout.LayoutParams) btnLive.getLayoutParams()).setMargins(0, 0, px(10), 0);
         btnFav = Ui.button(this, R.drawable.ic_heart, null, 48, 0x24F2F4F7);
         btnFav.setOnClickListener(v -> {
             boolean now = Prefs.toggleFavorite(this, cur());
@@ -391,6 +406,7 @@ public class PlayerActivity extends Activity {
 
     private void changeChannel(int i) {
         retries = 0;
+        ytBehindSec = 0;
         ytFailed = false;
         playChannel(i, false);
     }
@@ -522,6 +538,7 @@ public class PlayerActivity extends Activity {
             }
         }
         if (now % 20000 < 1000) updateEpg();
+        updateTimeshift();
 
         if (Prefs.sleepAt > 0 && !sleeping) {
             long left = Prefs.sleepAt - now;
@@ -571,8 +588,61 @@ public class PlayerActivity extends Activity {
         }
     }
 
+    // ------------------------------------------------------------------ geri sarma
+
+    /** dir: -1 geri, +1 ileri (10 saniye). */
+    private void seek(int dir) {
+        showOsd();
+        if (usingYt) {
+            if (dir < 0) {
+                yt.seekBy(-10);
+                ytBehindSec += 10;
+            } else if (ytBehindSec <= 10) {
+                goLive();
+                return;
+            } else {
+                yt.seekBy(10);
+                ytBehindSec -= 10;
+            }
+        } else if (!stream.seekBy(dir * 10000L)) {
+            Toast.makeText(this, "Bu kanalda daha fazla geri sarılamıyor", Toast.LENGTH_SHORT).show();
+        }
+        updateTimeshift();
+    }
+
+    private void goLive() {
+        if (usingYt) yt.goLive();
+        else stream.goLive();
+        ytBehindSec = 0;
+        updateTimeshift();
+        if (osd.hasFocus()) btnList.requestFocus();
+    }
+
+    /** Canlı mı, geride mi: isim yanındaki etiketi ve "Canlıya dön" butonunu günceller. */
+    private void updateTimeshift() {
+        long behind = usingYt ? ytBehindSec * 1000 : stream.behindLiveMs();
+        boolean playing = state == 1 || state == 2;
+        if (behind < 0 || !playing) {
+            liveBadge.setVisibility(View.GONE);
+            btnLive.setVisibility(View.GONE);
+            return;
+        }
+        liveBadge.setVisibility(View.VISIBLE);
+        if (behind < 4000) {
+            SpannableString s = new SpannableString("●  CANLI");
+            s.setSpan(new ForegroundColorSpan(Ui.LIVE), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            liveBadge.setText(s);
+            if (btnLive.hasFocus()) btnList.requestFocus();
+            btnLive.setVisibility(View.GONE);
+        } else {
+            long sec = behind / 1000;
+            liveBadge.setText("⏪  " + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60) + " geride");
+            btnLive.setVisibility(View.VISIBLE);
+        }
+    }
+
     private void updateHint() {
-        String h = "▲▼ kanal  ·  OK liste  ·  0–9 numara";
+        String h = "◀▶ geri/ileri sar  ·  ▲▼ kanal  ·  OK menü";
         long now = System.currentTimeMillis();
         if (Prefs.sleepAt > now) h += "  ·  Uyku: " + ((Prefs.sleepAt - now + 59999) / 60000) + " dk";
         hint.setText(h);
@@ -829,16 +899,24 @@ public class PlayerActivity extends Activity {
                     showOsd();
                     return super.dispatchKeyEvent(e);
                 }
-                showZap();
+                // OK: menüyü aç (kanal listesi butonu seçili gelir)
+                showOsd();
+                btnList.requestFocus();
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                showOsd();
-                if (!barFocused) {
-                    btnRefresh.requestFocus();
-                    return true;
+                if (barFocused) {
+                    showOsd();
+                    return super.dispatchKeyEvent(e);
                 }
-                return super.dispatchKeyEvent(e);
+                seek(k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                seek(-1);
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                seek(1);
+                return true;
             case KeyEvent.KEYCODE_BACK:
                 if (barFocused) {
                     hideOsd();
@@ -894,6 +972,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        clock.start();
         ui.removeCallbacks(tick);
         ui.post(tick);
     }
@@ -908,6 +987,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
+        clock.stop();
         stopped = true;
         ui.removeCallbacks(tick);
         stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır

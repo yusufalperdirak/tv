@@ -654,6 +654,7 @@ public class MainActivity extends Activity {
         }, 25000);
         ui.removeCallbacks(tick);
         tick.run();
+        clock.start();
         maybeAskOverlay();
     }
 
@@ -664,6 +665,7 @@ public class MainActivity extends Activity {
         if (moving != null) endMove(true);
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(tick);
+        clock.stop();
         preview.detach(); // tam ekrana geçilirse yayın kesilmeden devam eder
         ytToken++;
         ytPreview.stop();

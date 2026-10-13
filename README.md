@@ -14,15 +14,16 @@ Bu uygulama Yusuf Alper Dırak tarafından oluşturulmuştur.
 - **Arama:** ekran klavyesiyle veya sesle.
 - **İzleme:** altta ince bilgi şeridi; ♥, Yenile, Uyku, Kanal listesi. Kanal değişirken son kare donuk bekler.
 - **Kesintiye dayanıklı oynatıcı:** önizlemeden tam ekrana kesintisiz geçiş, canlı yayının birkaç saniye gerisinden oynatma, otomatik yeniden bağlanma.
-- **Türkiye saati**, **uyku zamanlayıcısı** (30/60/90 dk), **TV açılınca otomatik başlat**, **son kanalla aç**.
+- **Geri sarma:** izlerken ◀ ▶ ile 10 sn geri/ileri; "Canlıya dön" ile canlı yayına.
+- **Uyku zamanlayıcısı** (30/60/90 dk), **TV açılınca otomatik başlat**, **son kanalla aç**.
 - **Kanal listesi internetten güncellenir:** `app/src/main/assets/channels.m3u` dosyasını GitHub'da düzenlemek yeterli; TV'deki uygulama bir sonraki açılışta kendini günceller.
 
 ## Kumanda
 | Tuş | Ana ekran | İzlerken |
 |---|---|---|
-| ◀ ▶ | Kanallar arasında gez | Alt menü butonları |
+| ◀ ▶ | Kanallar arasında gez | 10 sn geri / ileri sar |
 | ▲ ▼ | Kategoriler arasında gez | Kanal değiştir |
-| OK | İzle | Hızlı kanal listesi |
+| OK | İzle | Menü (♥, Yenile, Uyku, Kanal listesi, Canlıya dön) |
 | OK basılı tut | Favorilere ekle / çıkar · Favoriler satırında: sırala | — |
 | 0–9 | — | Kanal numarasına git |
 | CH+ / CH− | — | Kanal değiştir |
