@@ -55,8 +55,9 @@ public class PlayerActivity extends Activity {
 
     private View sink;
     private ProgressBar spinner;     // ortadaki dönen yükleme simgesi
-    private LinearLayout clockBox;
-    private TextView clockLocal, clockTr;
+    private Clock clock;
+    private View clockBox;
+    private boolean zapOpen;
     private FrameLayout osd;
     private FrameLayout logoSlot;
     private TextView osdNum, osdName, osdLoading;
@@ -164,15 +165,8 @@ public class PlayerActivity extends Activity {
     // ------------------------------------------------------------------ arayüz
 
     private void buildClock(FrameLayout root) {
-        clockBox = new LinearLayout(this);
-        clockBox.setOrientation(LinearLayout.HORIZONTAL);
-        clockBox.setGravity(Gravity.BOTTOM);
-        clockLocal = Ui.text(this, "", 22, Ui.MEDIUM, Ui.TEXT);
-        clockLocal.setShadowLayer(px(8), 0, px(1), 0x99000000);
-        clockBox.addView(clockLocal);
-        clockTr = Ui.text(this, "", 13, Ui.MEDIUM, Ui.SOFT);
-        clockTr.setShadowLayer(px(8), 0, px(1), 0x99000000);
-        clockBox.addView(clockTr, Ui.margins(this, -2, -2, 10, 0, 0, 2));
+        clock = new Clock(this);
+        clockBox = clock.view;
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         lp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
         root.addView(clockBox, lp);
@@ -585,15 +579,12 @@ public class PlayerActivity extends Activity {
     }
 
     private void updateClock() {
-        clockLocal.setText(Actions.localTime());
-        String tr = Actions.turkeyTime();
-        clockTr.setText(tr == null ? "" : "TR " + tr);
-        clockTr.setVisibility(tr == null ? View.GONE : View.VISIBLE);
+        clock.update();
     }
 
     private void showOsd() {
-        osd.setVisibility(View.VISIBLE);
-        clockBox.setVisibility(View.VISIBLE);
+        Ui.fadeIn(osd, px(24));
+        Ui.fadeIn(clockBox, -px(12));
         ui.removeCallbacks(hideOsd);
         ui.postDelayed(hideOsd, osd.hasFocus() ? 8000 : 5000);
     }
@@ -602,9 +593,9 @@ public class PlayerActivity extends Activity {
         ui.removeCallbacks(hideOsd);
         if (errorPanel.getVisibility() == View.VISIBLE) return;
         boolean hadFocus = osd.hasFocus();
-        osd.setVisibility(View.GONE);
-        clockBox.setVisibility(View.GONE);
         if (hadFocus) sink.requestFocus();
+        Ui.fadeOut(osd, px(24));
+        Ui.fadeOut(clockBox, -px(12));
     }
 
     private void showError() {
@@ -617,8 +608,10 @@ public class PlayerActivity extends Activity {
                 + "Yenile'ye basabilir veya başka kanala geçebilirsin. Bir dakika içinde kendiliğinden tekrar denenecek.");
         osdLoading.setText("Yayın yok");
         osdLoading.setVisibility(View.VISIBLE);
+        errorPanel.setAlpha(0f);
         errorPanel.setVisibility(View.VISIBLE);
-        osd.setVisibility(View.VISIBLE);
+        errorPanel.animate().alpha(1f).setDuration(260).setInterpolator(Ui.EASE).start();
+        Ui.fadeIn(osd, px(24));
         ui.removeCallbacks(hideOsd);
         errRefresh.requestFocus();
     }
@@ -639,14 +632,16 @@ public class PlayerActivity extends Activity {
         zapCats.addAll(Channel.categories(channels));
         zapCat = Prefs.isFavorite(this, cur()) && anyFav ? 0 : Math.max(0, zapCats.indexOf(cur().category));
         hideOsd();
-        zapPanel.setVisibility(View.VISIBLE);
+        zapOpen = true;
         buildZapRows(true);
+        Ui.slideIn(zapPanel, px(120));
     }
 
     private void hideZap() {
-        zapPanel.setVisibility(View.GONE);
-        zapList.removeAllViews();
+        if (!zapOpen) return;
+        zapOpen = false;
         sink.requestFocus();
+        Ui.slideOut(zapPanel, px(120));
     }
 
     private void zapCategory(int delta) {
@@ -792,7 +787,7 @@ public class PlayerActivity extends Activity {
             return true;
         }
 
-        if (zapPanel.getVisibility() == View.VISIBLE) {
+        if (zapOpen) {
             switch (k) {
                 case KeyEvent.KEYCODE_BACK:
                 case KeyEvent.KEYCODE_GUIDE:
@@ -881,7 +876,7 @@ public class PlayerActivity extends Activity {
         int n = Integer.parseInt(digits.toString());
         digits.setLength(0);
         if (n >= 1 && n <= channels.size()) {
-            if (zapPanel.getVisibility() == View.VISIBLE) hideZap();
+            if (zapOpen) hideZap();
             changeChannel(n - 1);
         } else {
             Toast.makeText(this, "Kanal " + n + " yok", Toast.LENGTH_SHORT).show();
@@ -889,6 +884,12 @@ public class PlayerActivity extends Activity {
     }
 
     // ------------------------------------------------------------------ yaşam döngüsü
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
 
     @Override
     protected void onStart() {

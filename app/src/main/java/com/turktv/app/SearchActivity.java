@@ -211,4 +211,10 @@ public class SearchActivity extends Activity {
         }
         return super.dispatchKeyEvent(e);
     }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
 }

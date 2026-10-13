@@ -44,7 +44,8 @@ public class MainActivity extends Activity {
     private YtPlayer ytPreview;   // resmi YouTube yayını olan kanalların önizlemesi
     private int ytToken;
     private TextView previewNote;
-    private TextView clockLocal, clockTr;
+    private Clock clock;
+    private LinearLayout infoBox;
     private TextView infoCat, infoName, infoHint;
     private LinearLayout epgBox;
     private TextView nowTitle, nowTime, nextTitle, nextTime;
@@ -193,19 +194,18 @@ public class MainActivity extends Activity {
             View first = firstCard();
             if (first != null) first.requestFocus();
         }));
-        header.addView(navPill("Ara", false, v -> startActivity(new Intent(this, SearchActivity.class))));
-        header.addView(navPill("Ayarlar", false, v -> startActivity(new Intent(this, SettingsActivity.class))));
+        header.addView(navPill("Ara", false, v -> go(new Intent(this, SearchActivity.class))));
+        header.addView(navPill("Ayarlar", false, v -> go(new Intent(this, SettingsActivity.class))));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        clockLocal = Ui.text(this, "", 20, Ui.MEDIUM, Ui.TEXT);
-        header.addView(clockLocal);
-        clockTr = Ui.text(this, "", 14, Ui.MEDIUM, Ui.MUTED);
-        header.addView(clockTr, Ui.margins(this, -2, -2, 10, 0, 0, 0));
-        FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams(-1, px(48), Gravity.TOP);
+        clock = new Clock(this);
+        header.addView(clock.view);
+        FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         hLp.setMargins(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
         root.addView(header, hLp);
 
         // --- Kanal bilgisi
         LinearLayout info = new LinearLayout(this);
+        infoBox = info;
         info.setOrientation(LinearLayout.VERTICAL);
         infoCat = Ui.text(this, "", 13, Ui.BOLD, 0xFFA8B1BF);
         infoCat.setLetterSpacing(0.12f);
@@ -341,11 +341,16 @@ public class MainActivity extends Activity {
         HScroll hs = new HScroll(this);
         hs.setHorizontalScrollBarEnabled(false);
         hs.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // kenara kayan kartlar aniden kesilmesin, yumuşakça solsun
+        hs.setHorizontalFadingEdgeEnabled(true);
+        hs.setFadingEdgeLength(px(Ui.edgeX(this)));
+        hs.setClipChildren(false);
+        row.setClipChildren(false);
         hs.setClipToPadding(false);
         LinearLayout cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setClipChildren(false);
-        cards.setPadding(px(Ui.edgeX(this)), px(16), px(400), px(18));
+        cards.setPadding(px(Ui.edgeX(this)), px(24), px(400), px(26));
         hs.addView(cards);
         row.addView(hs);
 
@@ -479,7 +484,7 @@ public class MainActivity extends Activity {
         if (e.getAction() == KeyEvent.ACTION_DOWN && k == KeyEvent.KEYCODE_SEARCH) {
             Intent i = new Intent(this, SearchActivity.class);
             i.putExtra(SearchActivity.EXTRA_VOICE, true);
-            startActivity(i);
+            go(i);
             return true;
         }
         return super.dispatchKeyEvent(e);
@@ -492,8 +497,15 @@ public class MainActivity extends Activity {
             updateInfo();
             return;
         }
+        boolean changed = c != selected;
         selected = c;
         updateInfo();
+        if (changed) { // bilgi alanı yumuşakça yenilensin
+            infoBox.animate().cancel();
+            infoBox.setAlpha(0.25f);
+            infoBox.setTranslationX(-px(10));
+            infoBox.animate().alpha(1f).translationX(0).setDuration(260).setInterpolator(Ui.EASE).start();
+        }
         previewNote.setVisibility(View.GONE);
         ui.removeCallbacks(previewRunnable);
         if (resumed) ui.postDelayed(previewRunnable, 500);
@@ -578,19 +590,22 @@ public class MainActivity extends Activity {
     }
 
     private void updateClock() {
-        clockLocal.setText(Actions.localTime());
-        String tr = Actions.turkeyTime();
-        clockTr.setText(tr == null ? "" : "TR " + tr);
-        clockTr.setVisibility(tr == null ? View.GONE : View.VISIBLE);
+        clock.update();
     }
 
     // ------------------------------------------------------------------ gezinme
+
+    /** Ekranlar arası yumuşak geçiş. */
+    private void go(Intent i) {
+        startActivity(i);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
 
     private void openChannel(Channel c) {
         Prefs.last(this, c.index);
         Intent i = new Intent(this, PlayerActivity.class);
         i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
-        startActivity(i);
+        go(i);
     }
 
     private void maybeAskOverlay() {

@@ -8,6 +8,8 @@ import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.Interpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -111,9 +113,55 @@ final class Ui {
             if (iv != null) iv.setColorFilter(fg, PorterDuff.Mode.SRC_IN);
             if (tv != null) tv.setTextColor(fg);
             float s = has ? 1.05f : 1f;
-            v.animate().scaleX(s).scaleY(s).setDuration(110).start();
+            v.animate().scaleX(s).scaleY(s).setDuration(180).setInterpolator(EASE).start();
         });
         return b;
+    }
+
+    // ------------------------------------------------------------------ yumuşak geçişler
+
+    static final Interpolator EASE = new DecelerateInterpolator(1.8f);
+
+    /** Görünür yap: hafifçe kayarak belirir (dy: başlangıç kayması, px). */
+    static void fadeIn(View v, float dy) {
+        v.animate().cancel();
+        if (v.getVisibility() != View.VISIBLE) {
+            v.setAlpha(0f);
+            v.setTranslationY(dy);
+            v.setVisibility(View.VISIBLE);
+        }
+        v.animate().alpha(1f).translationY(0).setDuration(240).setInterpolator(EASE).withEndAction(null).start();
+    }
+
+    /** Gizle: solarak kaybolur, sonunda GONE olur. */
+    static void fadeOut(View v, float dy) {
+        if (v.getVisibility() != View.VISIBLE) return;
+        v.animate().cancel();
+        v.animate().alpha(0f).translationY(dy).setDuration(200).setInterpolator(EASE).withEndAction(() -> {
+            v.setVisibility(View.GONE);
+            v.setTranslationY(0);
+            v.setAlpha(1f);
+        }).start();
+    }
+
+    /** Soldan kayarak gelir. */
+    static void slideIn(View v, float fromDx) {
+        v.animate().cancel();
+        v.setTranslationX(-fromDx);
+        v.setAlpha(0f);
+        v.setVisibility(View.VISIBLE);
+        v.animate().translationX(0).alpha(1f).setDuration(260).setInterpolator(EASE).withEndAction(null).start();
+    }
+
+    /** Sola kayarak gider. */
+    static void slideOut(View v, float toDx) {
+        if (v.getVisibility() != View.VISIBLE) return;
+        v.animate().cancel();
+        v.animate().translationX(-toDx).alpha(0f).setDuration(200).setInterpolator(EASE).withEndAction(() -> {
+            v.setVisibility(View.GONE);
+            v.setTranslationX(0);
+            v.setAlpha(1f);
+        }).start();
     }
 
     /** Butonun yazısını değiştirir (Ui.button ile yapılmış olmalı). */

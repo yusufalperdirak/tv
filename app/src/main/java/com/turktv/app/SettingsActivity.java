@@ -284,4 +284,10 @@ public class SettingsActivity extends Activity {
             if (r.view == f) showAside(r);
         }
     }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
 }
