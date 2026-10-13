@@ -68,6 +68,7 @@ final class StreamPlayer {
     final FrameLayout view;
     private final PlayerView playerView;
     private final ImageView freeze;
+    private final View cover; // ilk gerçek kare gelene kadar video katmanını tamamen örten siyah katman
     private final Context ctx;
     private Listener listener;
     private Bitmap frozen;
@@ -79,6 +80,9 @@ final class StreamPlayer {
         view.setFocusable(false);
         playerView = (PlayerView) LayoutInflater.from(c).inflate(R.layout.stream_view, view, false);
         view.addView(playerView, new FrameLayout.LayoutParams(-1, -1));
+        cover = new View(c);
+        cover.setBackgroundColor(Color.BLACK);
+        view.addView(cover, new FrameLayout.LayoutParams(-1, -1));
         freeze = new ImageView(c);
         freeze.setScaleType(ImageView.ScaleType.FIT_XY);
         freeze.setVisibility(View.GONE);
@@ -110,6 +114,8 @@ final class StreamPlayer {
         if (!force && c.url.equals(sharedUrl) && p.getPlayerError() == null
                 && p.getPlaybackState() != Player.STATE_IDLE && p.getPlaybackState() != Player.STATE_ENDED) {
             p.setPlayWhenReady(true);
+            cover.setAlpha(1f);
+            cover.setVisibility(View.VISIBLE);
             final boolean playing = p.isPlaying();
             ui.post(() -> {
                 if (owner == this && listener != null) listener.onState(playing ? 1 : 3);
@@ -118,6 +124,9 @@ final class StreamPlayer {
         }
 
         captureFrame();
+        cover.animate().cancel();
+        cover.setAlpha(1f);
+        cover.setVisibility(View.VISIBLE);
         hasFrame = false;
         quickRetries = 0;
         sharedUrl = c.url;
@@ -183,6 +192,11 @@ final class StreamPlayer {
                 if (l == null || shared == null) return;
                 if (playing) {
                     quickRetries = 0;
+                    // güvenlik: ilk kare bildirimi gelmese bile kapak ve donuk kare kısa süre sonra kalksın
+                    final StreamPlayer o = owner;
+                    ui.postDelayed(() -> {
+                        if (owner == o && o != null) o.unfreeze();
+                    }, 700);
                     l.onState(1);
                 } else if (shared.getPlaybackState() == Player.STATE_READY && !shared.getPlayWhenReady()) {
                     l.onState(2);
@@ -239,6 +253,9 @@ final class StreamPlayer {
     }
 
     private void unfreeze() {
+        if (cover.getVisibility() == View.VISIBLE) {
+            cover.animate().alpha(0f).setDuration(150).withEndAction(() -> cover.setVisibility(View.GONE)).start();
+        }
         if (freeze.getVisibility() != View.VISIBLE) return;
         freeze.animate().alpha(0f).setDuration(220).withEndAction(this::clearFreeze).start();
     }
