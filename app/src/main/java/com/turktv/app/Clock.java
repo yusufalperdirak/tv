@@ -6,10 +6,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/**
- * Sağ üstteki saat: yerel saat ve Türkiye saati yan yana, eşit büyüklükte, altlarında küçük
- * etiketlerle; arkadaki görüntüden ayrışsın diye yarı saydam yumuşak bir zemin üzerinde.
- */
+/** Sağ üstteki saat: yerel saat, arkadaki görüntüden ayrışsın diye yarı saydam yumuşak bir zemin üzerinde. */
 final class Clock {
 
     final LinearLayout view;
@@ -20,7 +17,7 @@ final class Clock {
         view = new LinearLayout(c);
         view.setOrientation(LinearLayout.HORIZONTAL);
         view.setGravity(Gravity.CENTER_VERTICAL);
-        view.setPadding(Ui.px(c, 20), Ui.px(c, 10), Ui.px(c, 20), Ui.px(c, 10));
+        view.setPadding(Ui.px(c, 18), Ui.px(c, 8), Ui.px(c, 18), Ui.px(c, 8));
         view.setBackground(Ui.rounded(c, 0x990B0D12, 18));
 
         LinearLayout lc = column(c);
@@ -64,11 +61,9 @@ final class Clock {
 
     void update() {
         localTime.setText(Actions.localTime());
-        String tr = Actions.turkeyTime();
-        boolean same = tr == null;
-        trCol.setVisibility(same ? View.GONE : View.VISIBLE);
-        divider.setVisibility(same ? View.GONE : View.VISIBLE);
-        localLabel.setText(same ? "SAAT" : "YEREL");
-        if (!same) trTime.setText(tr);
+        // Sadece yerel saat gösterilir (Türkiye saati kaldırıldı)
+        trCol.setVisibility(View.GONE);
+        divider.setVisibility(View.GONE);
+        localLabel.setVisibility(View.GONE);
     }
 }
