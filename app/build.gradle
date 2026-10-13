@@ -25,11 +25,22 @@ android {
         buildConfig true
     }
 
+    // Sabit imza anahtarı: her derleme aynı anahtarla imzalanır, böylece yeni sürüm
+    // TV'de eskisinin üzerine (ayarlar ve favoriler silinmeden) güncelleme olarak kurulur.
+    // Sadece bu kişisel, Play Store dışı uygulama içindir.
+    signingConfigs {
+        tv {
+            storeFile rootProject.file('signing/tv.jks')
+            storePassword 'tvuygulamasi'
+            keyAlias 'tv'
+            keyPassword 'tvuygulamasi'
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            // Kolay kurulum için debug anahtarıyla imzalanır (Play Store'a yüklenmeyecek).
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.tv
         }
     }
 
