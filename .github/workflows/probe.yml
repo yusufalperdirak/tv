@@ -2,12 +2,15 @@ name: EPG kontrol
 on:
   push:
     branches: [epg-probe]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
+          exec > probe.txt 2>&1
           curl -sL -o epg.xml.gz https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz
           ls -la epg.xml.gz
           gunzip -c epg.xml.gz > epg.xml; ls -la epg.xml
@@ -20,3 +23,6 @@ jobs:
           echo "--- ornek programme:"; grep -m3 '<programme' epg.xml
           grep -m1 -A4 '<programme' epg.xml
           echo "--- ilk/son tarih:"; grep -o 'start="[0-9]\{8\}' epg.xml | sort | uniq -c | head -12
+      - run: |
+          git config user.name probe; git config user.email probe@users.noreply.github.com
+          git add probe.txt; git commit -m "probe sonucu"; git push
