@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- TV logosu: üst üste iki ekran (kırmızı zemin üzerinde kullanılır, renklendirilmez) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
-        android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M8,2L12,6L16,2M4,6H20A2,2 0 0,1 22,8V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V8A2,2 0 0,1 4,6ZM9,23H15" />
+    android:viewportWidth="100" android:viewportHeight="100">
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.38"
+        android:pathData="M37,20H75A9,9 0 0,1 84,29V51A9,9 0 0,1 75,60H37A9,9 0 0,1 28,51V29A9,9 0 0,1 37,20Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M25,34H65A9,9 0 0,1 74,43V67A9,9 0 0,1 65,76H25A9,9 0 0,1 16,67V43A9,9 0 0,1 25,34Z" />
+    <path android:fillColor="#FFE30A17"
+        android:pathData="M24,47A5,5 0 1,0 34,47A5,5 0 1,0 24,47Z" />
 </vector>

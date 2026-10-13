@@ -31,9 +31,14 @@ public class Channel {
     public final String logo;     // boş olabilir
     public final String ua;       // null olabilir
     public final String referer;  // null olabilir
+    public final String tvgId;    // program rehberi kimliği (boş olabilir)
     public final int color;
 
-    private Channel(int index, String name, String category, String url, String logo, String ua, String referer) {
+    /** Listenin başındaki program rehberi (XMLTV) adresi, yoksa boş. */
+    static String epgUrl = "";
+
+    private Channel(int index, String name, String category, String url, String logo, String ua, String referer,
+                    String tvgId) {
         this.index = index;
         this.number = index + 1;
         this.name = name;
@@ -42,6 +47,7 @@ public class Channel {
         this.logo = logo;
         this.ua = ua;
         this.referer = referer;
+        this.tvgId = tvgId;
         Integer c = COLORS.get(category);
         this.color = c != null ? c : 0xFF2B3340;
     }
@@ -134,7 +140,7 @@ public class Channel {
 
     static List<Channel> parse(String m3u) throws Exception {
         final class Raw {
-            String name, group, logo, url, ua, ref;
+            String name, group, logo, url, ua, ref, id;
             int order;
         }
         List<Raw> raws = new ArrayList<>();
@@ -144,17 +150,27 @@ public class Channel {
         while ((line = r.readLine()) != null) {
             line = line.trim();
             if (line.isEmpty()) continue;
+            if (line.startsWith("#EXTM3U")) {
+                Matcher h = ATTR.matcher(line);
+                while (h.find()) {
+                    String k = h.group(1).toLowerCase(Actions.TR);
+                    if (k.equals("url-tvg") || k.equals("x-tvg-url")) epgUrl = h.group(2).split(",")[0].trim();
+                }
+                continue;
+            }
             if (line.startsWith("#EXTINF")) {
                 cur = new Raw();
                 int comma = lastCommaOutsideQuotes(line);
                 cur.name = comma >= 0 ? line.substring(comma + 1).trim() : "";
                 cur.group = "";
                 cur.logo = "";
+                cur.id = "";
                 Matcher m = ATTR.matcher(comma >= 0 ? line.substring(0, comma) : line);
                 while (m.find()) {
                     String k = m.group(1).toLowerCase(Actions.TR);
                     if (k.equals("group-title")) cur.group = m.group(2);
                     else if (k.equals("tvg-logo")) cur.logo = m.group(2).trim();
+                    else if (k.equals("tvg-id")) cur.id = m.group(2).trim();
                     else if (k.equals("tvg-name") && cur.name.isEmpty()) cur.name = m.group(2);
                 }
             } else if (line.startsWith("#EXTVLCOPT:") && cur != null) {
@@ -177,9 +193,22 @@ public class Channel {
         });
         List<Channel> list = new ArrayList<>();
         for (Raw x : raws) {
-            list.add(new Channel(list.size(), x.name, category(x.group), x.url, x.logo, x.ua, x.ref));
+            list.add(new Channel(list.size(), x.name, category(x.group), x.url, x.logo, x.ua, x.ref, x.id));
         }
         return list;
+    }
+
+    /** Karşılaştırma anahtarı: "TR: Habertürk HD" → "haberturk" */
+    static String key(String s) {
+        s = s.toLowerCase(Actions.TR)
+                .replace('ı', 'i').replace('ş', 's').replace('ğ', 'g')
+                .replace('ü', 'u').replace('ö', 'o').replace('ç', 'c').replace('â', 'a').replace('î', 'i');
+        s = s.replaceAll("\\(.*?\\)|\\[.*?\\]", " ");
+        s = s.replaceAll("^\\W*tr\\W+", " ");
+        s = s.replaceAll("\\b(uhd|fhd|hd|sd|4k|hevc|1080p?|720p?|canli|live)\\b", " ");
+        s = s.replaceAll("[^a-z0-9]", "");
+        if (s.endsWith("tv") && s.length() > 4) s = s.substring(0, s.length() - 2);
+        return s;
     }
 
     private static int lastCommaOutsideQuotes(String s) {

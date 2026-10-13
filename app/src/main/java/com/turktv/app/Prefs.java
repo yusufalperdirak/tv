@@ -3,8 +3,11 @@ package com.turktv.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import android.text.TextUtils;
+
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
 /** Kullanıcı ayarları. */
 final class Prefs {
@@ -37,22 +40,40 @@ final class Prefs {
     static void listUpdated(Context c, long v) { p(c).edit().putLong("listUpdated", v).apply(); }
 
 
-    static boolean isFavorite(Context c, Channel ch) {
-        return p(c).getStringSet("favs", new HashSet<>()).contains(ch.name);
+    /** Favoriler, kullanıcının belirlediği sırayla (kanal adları). */
+    static List<String> favorites(Context c) {
+        SharedPreferences sp = p(c);
+        List<String> out = new ArrayList<>();
+        String raw = sp.getString("favList", null);
+        if (raw == null) {
+            // eski sürümden: sırasız küme
+            out.addAll(sp.getStringSet("favs", new HashSet<>()));
+            setFavorites(c, out);
+            return out;
+        }
+        for (String s : raw.split("\n")) if (!s.isEmpty()) out.add(s);
+        return out;
     }
 
-    /** Favori durumunu değiştirir, yeni durumu döndürür. */
+    static void setFavorites(Context c, List<String> list) {
+        p(c).edit().putString("favList", TextUtils.join("\n", list)).apply();
+    }
+
+    static boolean isFavorite(Context c, Channel ch) {
+        return favorites(c).contains(ch.name);
+    }
+
+    /** Favori durumunu değiştirir, yeni durumu döndürür. Yeni favori sona eklenir. */
     static boolean toggleFavorite(Context c, Channel ch) {
-        Set<String> s = new HashSet<>(p(c).getStringSet("favs", new HashSet<>()));
+        List<String> l = favorites(c);
         boolean now;
-        if (s.contains(ch.name)) {
-            s.remove(ch.name);
+        if (l.remove(ch.name)) {
             now = false;
         } else {
-            s.add(ch.name);
+            l.add(ch.name);
             now = true;
         }
-        p(c).edit().putStringSet("favs", s).apply();
+        setFavorites(c, l);
         return now;
     }
 

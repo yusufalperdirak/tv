@@ -32,8 +32,9 @@ public class SplashActivity extends Activity {
 
         FrameLayout badge = new FrameLayout(this);
         badge.setBackground(Ui.rounded(this, Ui.ACCENT, 32));
-        badge.addView(Ui.icon(this, R.drawable.ic_tv, 72, Ui.WHITE),
-                new FrameLayout.LayoutParams(Ui.px(this, 72), Ui.px(this, 72), Gravity.CENTER));
+        android.widget.ImageView mark = new android.widget.ImageView(this);
+        mark.setImageResource(R.drawable.ic_tv);
+        badge.addView(mark, new FrameLayout.LayoutParams(Ui.px(this, 112), Ui.px(this, 112), Gravity.CENTER));
         col.addView(badge, new LinearLayout.LayoutParams(Ui.px(this, 136), Ui.px(this, 136)));
 
         TextView title = Ui.text(this, "TV", 56, Ui.BOLD, Ui.TEXT);
