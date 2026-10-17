@@ -22,3 +22,9 @@ LifeTV.tr@SD
 FinansTurkTV.tr@SD
 Haber61TV.tr@SD
 KanalPlus.tr
+HABER.GLOBAL.HD.tr
+HABER.GLOBAL.tr
+HALK.TV.tr
+EKOL.TV.tr
+AS.TV.tr
+TURKHABER.tr
