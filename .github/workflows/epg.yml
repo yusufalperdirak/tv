@@ -1,0 +1,44 @@
+name: EPG haber
+on:
+  push:
+    branches: [epg-export]
+    paths: [ids.txt, .github/workflows/epg.yml]
+permissions:
+  contents: write
+jobs:
+  epg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rehberi indir ve süz
+        run: |
+          set -e
+          for f in TR1 TR2 TR3; do curl -fsSL -m 120 -o $f.xml.gz https://epgshare01.online/epgshare01/epg_ripper_$f.xml.gz || echo "yok $f"; done
+          ls -la
+          python3 - <<'PY'
+          import gzip, glob, json, xml.etree.ElementTree as ET
+          ids=[l.strip() for l in open('ids.txt') if l.strip()]
+          want=set(ids)
+          out={"channels":{}, "programmes":[] , "all_ids":[]}
+          allids=set()
+          for f in sorted(glob.glob('*.xml.gz')):
+              for ev,el in ET.iterparse(gzip.open(f)):
+                  if el.tag=='channel':
+                      cid=el.get('id'); allids.add(cid)
+                      if cid in want:
+                          out["channels"][cid]=el.findtext('display-name')
+                      el.clear()
+                  elif el.tag=='programme':
+                      cid=el.get('channel')
+                      if cid in want:
+                          out["programmes"].append({"ch":cid,"start":el.get('start'),"stop":el.get('stop'),
+                            "title":el.findtext('title'),"desc":(el.findtext('desc') or '')[:400],"cat":el.findtext('category')})
+                      el.clear()
+          out["all_ids"]=sorted(allids)
+          json.dump(out,open('epg_haber.json','w'),ensure_ascii=False)
+          print(len(out["channels"]),"kanal",len(out["programmes"]),"program")
+          PY
+      - name: Sonucu kaydet
+        run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add epg_haber.json; git commit -m "EPG haber verisi"; git push
