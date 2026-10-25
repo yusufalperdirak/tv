@@ -52,16 +52,17 @@ final class ClockPill extends View {
         cut.setStrokeCap(Paint.Cap.ROUND);
         cut.setStrokeJoin(Paint.Join.ROUND);
         cutText.setXfermode(out);
-        cutText.setTypeface(Ui.REGULAR); // ince rakamlar
+        // ince rakamlar: Inter Thin + hafif kontur ≈ Light kalınlığı (hap içinde okunaklı kalır)
+        cutText.setTypeface(Ui.THIN);
+        cutText.setStyle(Paint.Style.FILL_AND_STROKE);
+        cutText.setStrokeWidth(0.85f * s);
         cutText.setTextSize(27 * s);
         cutText.setLetterSpacing(0.02f);
         setFocusable(true);
         setClickable(true);
         setContentDescription("Bugün");
-        setOnFocusChangeListener((v, has) -> {
-            Ui.focusLift(c, v, has);
-            invalidate();
-        });
+        // odakta büyümez (kesilme olmasın): yalnızca hap tam beyaz olur
+        setOnFocusChangeListener((v, has) -> invalidate());
     }
 
     /** Bugün sayfası açıkken takvim dairesi dolu görünür. */

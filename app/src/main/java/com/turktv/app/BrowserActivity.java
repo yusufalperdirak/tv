@@ -95,7 +95,8 @@ public class BrowserActivity extends Activity {
         return Ui.px(this, v);
     }
 
-    private static final int GLASS = 0x1FFFFFFF, GLASS_HOVER = 0x47FFFFFF;
+    // üst çubuk: yarı saydam beyaz zemin, koyu simgeler; üstüne gelince tam beyaz
+    private static final int GLASS = 0xD1FFFFFF, GLASS_HOVER = 0xFFFFFFFF, INK = 0xFF0B0D12;
 
     /** Yuvarlak cam düğme (iPad imleci üstüne gelince vurgulanır). */
     private FrameLayout roundButton(int icon, String desc, Runnable action) {
@@ -105,7 +106,7 @@ public class BrowserActivity extends Activity {
         d.setColor(GLASS);
         b.setBackground(d);
         b.setContentDescription(desc);
-        ImageView iv = Ui.icon(this, icon, 20, Ui.TEXT);
+        ImageView iv = Ui.icon(this, icon, 20, INK);
         b.addView(iv, new FrameLayout.LayoutParams(px(20), px(20), Gravity.CENTER));
         b.setOnClickListener(v -> action.run());
         targets.add(b);
@@ -138,13 +139,13 @@ public class BrowserActivity extends Activity {
         LinearLayout addrRow = new LinearLayout(this);
         addrRow.setGravity(Gravity.CENTER);
         addrRow.setPadding(px(20), 0, px(20), 0);
-        lockIcon = Ui.icon(this, R.drawable.ic_lock, 14, 0xFFAEB4BE);
+        lockIcon = Ui.icon(this, R.drawable.ic_lock, 14, 0xFF5A6272);
         addrRow.addView(lockIcon, new LinearLayout.LayoutParams(px(14), px(14)));
         address = new EditText(this);
         address.setSingleLine(true);
         address.setHint("Ara veya adres yaz");
-        address.setHintTextColor(0xFF8E96A3);
-        address.setTextColor(Ui.TEXT);
+        address.setHintTextColor(0xFF5A6272);
+        address.setTextColor(INK);
         address.setTypeface(Ui.MEDIUM);
         address.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(17));
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
@@ -160,8 +161,8 @@ public class BrowserActivity extends Activity {
             String u = web.getUrl();
             address.setText(has ? (u != null ? u : "") : pretty(u));
             if (has) address.selectAll();
-            android.graphics.drawable.GradientDrawable d = Ui.rounded(this, has ? 0x33FFFFFF : GLASS, 24);
-            if (has) d.setStroke(px(2), Ui.WHITE);
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(this, has ? 0xFFFFFFFF : GLASS, 24);
+            if (has) d.setStroke(px(2), 0xFF4DA3FF);
             addrBox.setBackground(d);
             if (has) {
                 setHover(null);
@@ -190,12 +191,12 @@ public class BrowserActivity extends Activity {
         FrameLayout home = roundButton(R.drawable.ic_home, "Google", () -> web.loadUrl(HOME));
         bar.addView(home, gap(barH, barH, 10));
 
-        blockedText = Ui.text(this, "0", 15, Ui.BOLD, 0xFF7FD3A6);
+        blockedText = Ui.text(this, "0", 15, Ui.BOLD, 0xFF1E7A4A);
         blockedText.setGravity(Gravity.CENTER);
         blockedText.setCompoundDrawablePadding(px(6));
         android.graphics.drawable.Drawable sh = getDrawable(R.drawable.ic_shield);
         if (sh != null) {
-            sh.setTint(0xFF7FD3A6);
+            sh.setTint(0xFF1E7A4A);
             sh.setBounds(0, 0, px(18), px(18));
             blockedText.setCompoundDrawables(sh, null, null, null);
         }
@@ -234,7 +235,7 @@ public class BrowserActivity extends Activity {
         root.addView(cursor, new FrameLayout.LayoutParams(px(24), px(24)));
 
         // ---- kısa ipucu (birkaç saniye görünür)
-        hintPill = Ui.text(this, "OK: tıkla   ·   OK basılı: kaydırma   ·   Yukarı: adres çubuğu", 14, Ui.MEDIUM, Ui.TEXT);
+        hintPill = Ui.text(this, "OK: tıkla   ·   OK basılı: kaydırma   ·   Yukarı: üst çubuk (◀▶ geçiş, ▼ geri)", 14, Ui.MEDIUM, Ui.TEXT);
         hintPill.setPadding(px(20), px(10), px(20), px(10));
         hintPill.setBackground(Ui.rounded(this, 0xCC1C1F26, 22));
         FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -448,6 +449,33 @@ public class BrowserActivity extends Activity {
         } else setHover(null);
     }
 
+    /** İmleci üst çubuktaki bir düğmeye oturtur. */
+    private void snapTo(View t) {
+        int[] o = new int[2], r = new int[2];
+        t.getLocationInWindow(o);
+        root.getLocationInWindow(r);
+        cx = o[0] - r[0] + t.getWidth() / 2f;
+        cy = o[1] - r[1] + t.getHeight() / 2f;
+        int half = px(12);
+        cursor.setTranslationX(cx - half);
+        cursor.setTranslationY(cy - half);
+        setHover(t);
+    }
+
+    private View nearestTarget(float x) {
+        View best = addrBox;
+        float bd = Float.MAX_VALUE;
+        for (View t : targets) {
+            int[] o = new int[2], r = new int[2];
+            t.getLocationInWindow(o);
+            root.getLocationInWindow(r);
+            float c = o[0] - r[0] + t.getWidth() / 2f, d = Math.abs(c - x);
+            if (t == addrBox) d = Math.max(0, d - t.getWidth() / 2f); // adres hapı geniş: üstündeysen o seçilir
+            if (d < bd) { bd = d; best = t; }
+        }
+        return best;
+    }
+
     /** iPad imleci gibi: düğmenin üstüne gelince imleç kaybolur, düğme aydınlanıp hafifçe büyür. */
     private void setHover(View v) {
         if (v == hovered) return;
@@ -458,7 +486,7 @@ public class BrowserActivity extends Activity {
         hovered = v;
         if (v != null) {
             tint(v, GLASS_HOVER);
-            float sc = v == addrBox ? 1.02f : 1.1f;
+            float sc = v == addrBox ? 1.02f : 1.06f;
             v.animate().scaleX(sc).scaleY(sc).setDuration(200).setInterpolator(Ui.FOCUS).start();
             cursor.animate().cancel();
             cursor.animate().alpha(0f).scaleX(0.6f).scaleY(0.6f).setDuration(140).start();
@@ -493,14 +521,15 @@ public class BrowserActivity extends Activity {
         }
         float edge = px(14);
         float pl = page.getLeft(), pt = page.getTop(), pr = page.getRight(), pb = page.getBottom();
-        if (inBarZone()) { // üst çubukta: sağa-sola serbest, aşağı basınca sayfaya döner
+        if (inBarZone()) { // üst çubukta: ◀▶ düğmeler arasında geçiş, ▼ ile imlece (sayfaya) dön
             if (dy > 0) {
                 cy = pt + px(40);
-            } else if (dy == 0) {
-                cx = Math.max(pl, Math.min(pr, cx + dx * step));
+                placeCursor();
+                showCursor();
+            } else if (dx != 0 && repeat % 3 == 0) {
+                int i = hovered == null ? targets.indexOf(addrBox) : targets.indexOf(hovered) + dx;
+                if (i >= 0 && i < targets.size()) snapTo(targets.get(i));
             }
-            placeCursor();
-            showCursor();
             return;
         }
         cx += dx * step;
@@ -511,8 +540,8 @@ public class BrowserActivity extends Activity {
                 web.scrollBy(0, -(int) step * 2);
                 cy = pt + edge;
             } else {
-                cy = bar.getTop() + bar.getHeight() / 2f;
-                cx = Math.max(addrBox.getLeft() + bar.getLeft(), Math.min(addrBox.getRight() + bar.getLeft(), cx));
+                snapTo(nearestTarget(cx));
+                return;
             }
         }
         if (cy > pb - edge) { web.scrollBy(0, (int) step * 2); cy = pb - edge; }

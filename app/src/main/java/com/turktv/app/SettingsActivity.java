@@ -148,6 +148,17 @@ public class SettingsActivity extends Activity {
         r.toggleSet = v -> Prefs.hideOffline(this, v);
         addRow(list, r);
 
+        final Row home = new Row();
+        home.title = "Ana ekran (launcher)";
+        home.sub = "Kumandadaki ana ekran tuşu bu uygulamayı açsın";
+        home.desc = "TV'nde ana ekranı değiştirme seçeneği olmadığı için uygulama, TV'nin kendi ana ekranı açıldığı anda "
+                + "kendini öne getirir. Bunun için iki yol var: Kullanım erişimi (çoğu TV'de çalışır) ya da Erişilebilirlik. "
+                + "Birini bir kez açman yeterli. Ekran içeriği okunmaz.";
+        home.icon = R.drawable.ic_home;
+        home.action = () -> HomeWatch.showSetup(this);
+        addRow(list, home);
+        homeRow = home;
+
         final Row edit = new Row();
         edit.title = "Kanalları düzenle";
         edit.sub = "İzlemediğin kanalları gizle, sırayı değiştir";
@@ -397,6 +408,7 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (homeRow != null) homeRow.valueView.setText(HomeWatch.active(this) ? "Etkin  ›" : "Etkin değil  ›");
         if (HomeWatch.hasUsage(this)) WakeService.start(this);
         if (editRow != null) editRow.valueView.setText(Lineup.get(this).size() + " görünür · " + Prefs.hidden(this).size() + " gizli  ›");
         View f = getCurrentFocus();
