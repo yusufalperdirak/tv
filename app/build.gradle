@@ -16,9 +16,10 @@ android {
         minSdk 23
         // 33: otomatik açılış servisinin eski/yeni tüm Android TV'lerde sorunsuz çalışması için
         targetSdk 33
-        versionCode 19
-        versionName '6.4'
+        versionCode 20
+        versionName '7.0'
         buildConfigField "String", "CHANNELS_URL", "\"${listUrl}\""
+        buildConfigField "String", "REPO", "\"${repo}\""
     }
 
     buildFeatures {

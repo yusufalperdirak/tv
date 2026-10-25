@@ -35,6 +35,7 @@ public class SettingsActivity extends Activity {
     }
 
     private final List<Row> rows = new ArrayList<>();
+    private Row homeRow, editRow;
     private ImageView asideIcon;
     private TextView asideTitle, asideDesc, asideNote;
 
@@ -56,7 +57,7 @@ public class SettingsActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(Ui.text(this, "Ayarlar", 34, Ui.BOLD, Ui.TEXT));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        header.addView(Ui.text(this, "TV · sürüm " + BuildConfig.VERSION_NAME + " · Yusuf Alper Dırak", 14, Ui.REGULAR, Ui.MUTED));
+        header.addView(Ui.text(this, "DIRAK · sürüm " + BuildConfig.VERSION_NAME + " · Yusuf Alper Dırak", 14, Ui.REGULAR, Ui.MUTED));
         root.addView(header);
 
         LinearLayout body = new LinearLayout(this);
@@ -147,6 +148,172 @@ public class SettingsActivity extends Activity {
         r.toggleSet = v -> Prefs.hideOffline(this, v);
         addRow(list, r);
 
+        final Row home = new Row();
+        home.title = "Ana ekran tuşu";
+        home.sub = "Kumandadaki ana ekran tuşu bu uygulamayı açsın";
+        home.desc = "TV'nde ana ekranı değiştirme seçeneği olmadığı için uygulama, TV'nin kendi ana ekranı açıldığı anda "
+                + "kendini öne getirir. Bunun için Erişilebilirlik ayarlarında \"TV ana ekran tuşu\" hizmetini bir kez açman yeterli. "
+                + "Ekran içeriği okunmaz.";
+        home.icon = R.drawable.ic_home;
+        home.action = () -> HomeService.openSettings(this);
+        addRow(list, home);
+        homeRow = home;
+
+        final Row edit = new Row();
+        edit.title = "Kanalları düzenle";
+        edit.sub = "İzlemediğin kanalları gizle, sırayı değiştir";
+        edit.desc = "Kanal listesinde istemediğin kanalları gizleyebilir, kalanları istediğin sıraya koyabilirsin. "
+                + "Kanal numaraları yeni sıraya göre verilir.";
+        edit.icon = R.drawable.ic_edit;
+        edit.action = () -> startActivity(new android.content.Intent(this, EditChannelsActivity.class));
+        addRow(list, edit);
+        editRow = edit;
+
+        r = new Row();
+        r.title = "Gece modu";
+        r.sub = "Gece saatlerinde ses sınırlanır, görüntü hafifçe kararır";
+        r.desc = "Belirlediğin saatler arasında ses en fazla %35'e çıkar ve görüntü biraz kısılır. "
+                + "Kontrol Merkezi'nden de açıp kapatabilirsin.";
+        r.icon = R.drawable.ic_moon;
+        r.toggleGet = () -> Prefs.nightMode(this);
+        r.toggleSet = v -> Prefs.nightMode(this, v);
+        addRow(list, r);
+
+        final Row nh = new Row();
+        nh.title = "Gece modu saatleri";
+        nh.sub = "Her basışta değişir";
+        nh.desc = "Gece modunun hangi saatler arasında çalışacağını seç.";
+        nh.icon = R.drawable.ic_w_moon;
+        nh.action = () -> {
+            Prefs.nightHours(this, (Prefs.nightHours(this) + 1) % Prefs.NIGHT_HOURS.length);
+            nh.valueView.setText(nightLabel());
+        };
+        addRow(list, nh);
+        nh.valueView.setText(nightLabel());
+
+        r = new Row();
+        r.title = "\"Hâlâ izliyor musun?\"";
+        r.sub = "3 saat tuşa basılmazsa sorar, cevap yoksa yayını durdurur";
+        r.desc = "Uyuya kalırsan yayın saatlerce boşuna açık kalmaz. Soru ekrana gelince herhangi bir tuşa basman yeterli; "
+                + "5 dakika cevap gelmezse yayın durur ve TV kendi ayarına göre ekranı kapatabilir.";
+        r.icon = R.drawable.ic_power;
+        r.toggleGet = () -> Prefs.stillWatching(this);
+        r.toggleSet = v -> Prefs.stillWatching(this, v);
+        addRow(list, r);
+
+        r = new Row();
+        r.title = "Açılış sesi";
+        r.sub = "DIRAK açılışında cam tınısı";
+        r.desc = "Uygulama açılırken çalan kısa cam tınısı.";
+        r.icon = R.drawable.ic_sound;
+        r.toggleGet = () -> Prefs.splashSound(this);
+        r.toggleSet = v -> Prefs.splashSound(this, v);
+        addRow(list, r);
+
+        r = new Row();
+        r.title = "Döviz kuru";
+        r.sub = "Ana ekranda Euro/TL ve Dolar/TL";
+        r.desc = "Ana ekranın sağ üstünde, saatin yanında güncel kur gösterilir (Avrupa Merkez Bankası verisi, günde bir güncellenir).";
+        r.icon = R.drawable.ic_list;
+        r.toggleGet = () -> Prefs.showRates(this);
+        r.toggleSet = v -> Prefs.showRates(this, v);
+        addRow(list, r);
+
+        r = new Row();
+        r.title = "Ezan vakitleri";
+        r.sub = "Ana ekranda sıradaki vakit";
+        r.desc = "Bulunduğun şehre göre (Diyanet hesaplama yöntemi) sıradaki ezan vakti ana ekranda gösterilir. "
+                + "Şehir internet bağlantından otomatik bulunur.";
+        r.icon = R.drawable.ic_w_sun;
+        r.toggleGet = () -> Prefs.showPrayer(this);
+        r.toggleSet = v -> Prefs.showPrayer(this, v);
+        addRow(list, r);
+
+        final Row scan = new Row();
+        scan.title = "Kanal taraması";
+        scan.sub = scanSub();
+        scan.desc = "TV kullanılmazken (genelde gece) uygulama bütün kanalları sırayla dener. Açılmayanlar işaretlenir; "
+                + "listede aynı kanalın başka bir adresi varsa yedek olarak kaydedilir ve kanal açılmazsa kendiliğinden ona geçilir. "
+                + "Şimdi taramak için OK'e bas (birkaç dakika sürebilir).";
+        scan.icon = R.drawable.ic_scan;
+        scan.action = () -> {
+            scan.valueView.setText("Taranıyor…");
+            ScanJob.runNow(this, (broken, alt) -> {
+                if (isFinishing()) return;
+                scan.valueView.setText("Şimdi tara  ›");
+                scan.subView.setText(scanSub());
+                Toast.makeText(this, broken == 0 ? "Bütün kanallar çalışıyor"
+                        : broken + " kanal açılmıyor" + (alt > 0 ? ", " + alt + " tanesi için yedek bulundu" : ""), Toast.LENGTH_LONG).show();
+            });
+        };
+        addRow(list, scan);
+        scan.valueView.setText("Şimdi tara  ›");
+
+        final Row bk = new Row();
+        bk.title = "Ayarları yedekle";
+        bk.sub = "Kanal sıran ve ayarların kısa bir koda kaydedilir";
+        bk.desc = "Uygulamayı yeniden kurarsan ya da başka bir TV'ye geçersen bu kodla her şeyi geri getirebilirsin. "
+                + "Yedek 1 yıl saklanır. Kodu bir yere not et.";
+        bk.icon = R.drawable.ic_backup;
+        bk.action = () -> {
+            bk.valueView.setText("Yedekleniyor…");
+            Backup.save(this, (code, err) -> {
+                if (isFinishing()) return;
+                bk.valueView.setText("Yedekle  ›");
+                if (code == null) {
+                    Toast.makeText(this, err, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                TextView big = Ui.text(this, code, 44, Ui.BOLD, Ui.BG);
+                big.setLetterSpacing(0.12f);
+                big.setGravity(Gravity.CENTER);
+                big.setPadding(0, px(18), 0, px(6));
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle("Yedek kodun")
+                        .setView(big)
+                        .setMessage("Bu kodu not et. Ayarlar › Yedekten geri yükle bölümüne yazınca her şey geri gelir. "
+                                + "Büyük/küçük harf önemlidir.")
+                        .setPositiveButton("Tamam", null)
+                        .show();
+            });
+        };
+        addRow(list, bk);
+        bk.valueView.setText("Yedekle  ›");
+
+        final Row rs = new Row();
+        rs.title = "Yedekten geri yükle";
+        rs.sub = "Yedek kodunu yaz";
+        rs.desc = "Daha önce aldığın yedek kodunu yazınca kanal sıran, gizlediğin kanallar ve ayarların geri gelir.";
+        rs.icon = R.drawable.ic_update;
+        rs.action = () -> {
+            final android.widget.EditText in = new android.widget.EditText(this);
+            in.setSingleLine(true);
+            in.setHint("ör. 7Gk2PqWx");
+            in.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(22));
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Yedek kodu")
+                    .setView(in)
+                    .setPositiveButton("Geri yükle", (d, w) -> Backup.restore(this, in.getText().toString(), (ok, err) -> {
+                        if (isFinishing()) return;
+                        Toast.makeText(this, ok != null ? "Ayarlar geri yüklendi" : err, Toast.LENGTH_LONG).show();
+                        if (ok != null) recreate();
+                    }))
+                    .setNegativeButton("Vazgeç", null)
+                    .show();
+        };
+        addRow(list, rs);
+        rs.valueView.setText("›");
+
+        final Row up = new Row();
+        up.title = "Güncellemeleri denetle";
+        up.sub = "Sürüm " + BuildConfig.VERSION_NAME;
+        up.desc = "Yeni sürüm çıktığında uygulama ana ekranda haber verir; buradan da elle kontrol edebilirsin. "
+                + "Güncelleme indirilip kurulur, ayarların korunur.";
+        up.icon = R.drawable.ic_update;
+        up.action = () -> Updater.check(this, true);
+        addRow(list, up);
+        up.valueView.setText("Denetle  ›");
+
         final Row edge = new Row();
         edge.title = "Ekran kenar boşluğu";
         edge.sub = "Menüler ekranın kenarından taşıyorsa artır";
@@ -182,6 +349,19 @@ public class SettingsActivity extends Activity {
         setContentView(root);
         rows.get(0).view.requestFocus();
         showAside(rows.get(0));
+    }
+
+    private String nightLabel() {
+        int[] h = Prefs.NIGHT_HOURS[Prefs.nightHours(this)];
+        return String.format(Actions.TR, "%02d:00 – %02d:00  ›", h[0], h[1]);
+    }
+
+    private String scanSub() {
+        long t = Prefs.scanAt(this);
+        if (t == 0) return "Henüz taranmadı · TV boştayken kendiliğinden taranır";
+        int n = Prefs.broken(this).size();
+        return "Son tarama: " + new SimpleDateFormat("d MMMM HH:mm", Actions.TR).format(new Date(t))
+                + " · " + (n == 0 ? "hepsi çalışıyor" : n + " kanal kapalı");
     }
 
     private String channelCount() {
@@ -278,6 +458,8 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (homeRow != null) homeRow.valueView.setText(HomeService.enabled(this) ? "Bağlı  ›" : "Bağlı değil  ›");
+        if (editRow != null) editRow.valueView.setText(Lineup.get(this).size() + " görünür · " + Prefs.hidden(this).size() + " gizli  ›");
         View f = getCurrentFocus();
         for (Row r : rows) {
             styleRow(r, r.view == f);

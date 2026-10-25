@@ -1,6 +1,8 @@
 package com.turktv.app;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.media.AudioManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -68,7 +70,22 @@ public class PlayerActivity extends Activity {
     private TextView nowTitle, nowTime, nextTitle;
     private View progressBar, progressFill;
     private TextView hint;
-    private LinearLayout btnFav, btnRefresh, btnSleep, btnList, btnLive;
+    private LinearLayout btnPause, btnRefresh, btnControl, btnList, btnLive;
+    // Kontrol Merkezi
+    private FrameLayout ctrlPanel;
+    private LinearLayout ctrlList;
+    private boolean ctrlOpen;
+    private int prevIndex = -1;
+    private int resizeMode;          // 0 sığdır, 1 doldur, 2 yakınlaştır
+    // hâlâ izliyor musun · gece modu · yedek yayın
+    private long lastInputAt = System.currentTimeMillis();
+    private LinearLayout askPanel;
+    private TextView askText;
+    private long askSince;
+    private View nightDim;
+    private boolean altTried;
+    private boolean warmed;
+    private static final long STILL_WATCHING_MS = 3 * 3600_000L, ASK_MS = 5 * 60_000L;
     private TextView liveBadge;   // "● CANLI" ya da "1:20 geride"
     private long ytBehindSec;     // YouTube'da kendi sarmalarımızdan hesaplanan gerilik
     // geri sarma görselleri
@@ -117,7 +134,7 @@ public class PlayerActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        channels = Channel.loadAll(this);
+        channels = Lineup.get(this);
         Epg.ensureLoaded(this);
         YouTubeLive.init(this);
         index = Math.max(0, Math.min(getIntent().getIntExtra(EXTRA_INDEX, 0), channels.size() - 1));
@@ -158,6 +175,11 @@ public class PlayerActivity extends Activity {
         sink.setFocusable(true);
         root.addView(sink, new FrameLayout.LayoutParams(1, 1));
 
+        nightDim = new View(this);
+        nightDim.setBackgroundColor(0x4D000000);
+        nightDim.setVisibility(View.GONE);
+        root.addView(nightDim, new FrameLayout.LayoutParams(-1, -1));
+
         spinner = spinner();
         root.addView(spinner, new FrameLayout.LayoutParams(px(56), px(56), Gravity.CENTER));
 
@@ -167,6 +189,8 @@ public class PlayerActivity extends Activity {
         buildError(root);
         buildZap(root);
         buildSleep(root);
+        buildControl(root);
+        buildAsk(root);
 
         numberEntry = Ui.text(this, "", 52, Ui.BOLD, Ui.TEXT);
         numberEntry.setLetterSpacing(0.1f);
@@ -280,20 +304,18 @@ public class PlayerActivity extends Activity {
         btnLive.setVisibility(View.GONE);
         btns.addView(btnLive);
         ((LinearLayout.LayoutParams) btnLive.getLayoutParams()).setMargins(0, 0, px(10), 0);
-        btnFav = Ui.button(this, R.drawable.ic_heart, null, 46, 0x24F2F4F7);
-        btnFav.setOnClickListener(v -> {
-            boolean now = Prefs.toggleFavorite(this, cur());
-            Toast.makeText(this, cur().name + (now ? " favorilere eklendi" : " favorilerden çıkarıldı"), Toast.LENGTH_SHORT).show();
-            updateOsd();
+        btnPause = Ui.button(this, R.drawable.ic_pause, null, 46, 0x24F2F4F7);
+        btnPause.setOnClickListener(v -> {
+            togglePause();
             showOsd();
         });
-        btns.addView(btnFav);
+        btns.addView(btnPause);
         btnRefresh = Ui.button(this, R.drawable.ic_refresh, null, 46, 0x24F2F4F7);
         btnRefresh.setOnClickListener(v -> refresh());
         addBtn(btns, btnRefresh);
-        btnSleep = Ui.button(this, R.drawable.ic_moon, null, 46, 0x24F2F4F7);
-        btnSleep.setOnClickListener(v -> cycleSleep());
-        addBtn(btns, btnSleep);
+        btnControl = Ui.button(this, R.drawable.ic_sliders, null, 46, 0x24F2F4F7);
+        btnControl.setOnClickListener(v -> showControl());
+        addBtn(btns, btnControl);
         btnList = Ui.button(this, R.drawable.ic_list, null, 46, 0x24F2F4F7);
         btnList.setOnClickListener(v -> showZap());
         addBtn(btns, btnList);
@@ -518,6 +540,7 @@ public class PlayerActivity extends Activity {
 
     private void changeChannel(int i) {
         retries = 0;
+        altTried = false;
         ytBehindSec = 0;
         ytFailed = false;
         playChannel(i, false);
@@ -531,8 +554,11 @@ public class PlayerActivity extends Activity {
     }
 
     private void playChannel(int i, boolean force) {
-        index = wrap(i);
-        Prefs.last(this, index);
+        int ni = wrap(i);
+        if (ni != index && !force) prevIndex = index;
+        index = ni;
+        Prefs.watched(this, cur());
+        warmed = false;
         hideError();
         userPaused = false;
         setState(-1);
@@ -612,11 +638,21 @@ public class PlayerActivity extends Activity {
             userPaused = false;
             retries = 0;
             Health.report(cur(), true);
+            if (!warmed) {
+                warmed = true;
+                // anında kanal geçişi: üst ve alt kanalın bağlantısını önceden ısıt
+                ui.postDelayed(() -> {
+                    if (stopped) return;
+                    Health.warm(channels.get(wrap(index + 1)));
+                    Health.warm(channels.get(wrap(index - 1)));
+                }, 3000);
+            }
         } else if (s == 0) {
             reconnect();
             return;
         }
         updateLoading();
+        if (btnPause != null) Ui.setButtonIcon(btnPause, s == 2 ? R.drawable.ic_play : R.drawable.ic_pause);
     }
 
     /** Otomatik yeniden bağlanma: birkaç kez dener, olmazsa Yenile ekranını gösterir. */
@@ -628,6 +664,17 @@ public class PlayerActivity extends Activity {
         }
         retries++;
         if (retries > MAX_RETRIES) {
+            String alt = altTried ? null : Prefs.altUrl(this, cur().url);
+            if (alt != null) {
+                altTried = true;
+                retries = 0;
+                Toast.makeText(this, cur().name + ": yedek yayına geçildi", Toast.LENGTH_SHORT).show();
+                hideError();
+                setState(-1);
+                stream.play(cur().withUrl(alt), false, true);
+                updateLoading();
+                return;
+            }
             Health.report(cur(), false);
             showError();
             return;
@@ -651,7 +698,13 @@ public class PlayerActivity extends Activity {
         }
         if (now % 20000 < 1000) updateEpg();
         updateTimeshift();
+        nightTick();
+        stillWatchingTick(now);
 
+        if (Prefs.sleepAtProgramEnd && Prefs.sleepAt == 0 && !sleeping) {
+            Epg.Prog p = Epg.now(cur());
+            if (p != null) Prefs.sleepAt = p.end;
+        }
         if (Prefs.sleepAt > 0 && !sleeping) {
             long left = Prefs.sleepAt - now;
             if (left <= 0) {
@@ -672,7 +725,6 @@ public class PlayerActivity extends Activity {
         logoSlot.addView(Cards.make(this, c, 112, 66, false, null), new FrameLayout.LayoutParams(-1, -1));
         osdNum.setText(String.valueOf(c.number));
         osdName.setText(c.name);
-        Ui.setButtonIcon(btnFav, Prefs.isFavorite(this, c) ? R.drawable.ic_heart_fill : R.drawable.ic_heart);
         updateEpg();
         updateHint();
         updateClock();
@@ -810,7 +862,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void updateHint() {
-        String h = "◀▶ 10 sn sar (basılı tut: 1 dk)  ·  ▲▼ kanal  ·  OK menü  ·  sürüm " + BuildConfig.VERSION_NAME;
+        String h = "◀▶ 10 sn sar (basılı tut: 1 dk)  ·  ▲▼ kanal  ·  OK menü  ·  Menü tuşu: Kontrol Merkezi";
         long now = System.currentTimeMillis();
         if (Prefs.sleepAt > now) h += "  ·  Uyku: " + ((Prefs.sleepAt - now + 59999) / 60000) + " dk";
         hint.setText(h);
@@ -865,10 +917,9 @@ public class PlayerActivity extends Activity {
 
     private void showZap() {
         zapCats.clear();
-        boolean anyFav = !Prefs.favorites(this).isEmpty();
-        if (anyFav) zapCats.add("Favoriler");
+        zapCats.add("Tüm kanallar");
         zapCats.addAll(Channel.categories(channels));
-        zapCat = Prefs.isFavorite(this, cur()) && anyFav ? 0 : Math.max(0, zapCats.indexOf(cur().category));
+        zapCat = 0;
         hideOsd();
         zapOpen = true;
         buildZapRows(true);
@@ -894,15 +945,8 @@ public class PlayerActivity extends Activity {
         zapCount.setText((zapCat + 1) + " / " + zapCats.size() + " kategori");
         zapList.removeAllViews();
         List<Channel> list = new ArrayList<>();
-        if ("Favoriler".equals(cat)) {
-            for (String n : Prefs.favorites(this)) {
-                for (Channel c : channels) {
-                    if (c.name.equals(n)) {
-                        list.add(c);
-                        break;
-                    }
-                }
-            }
+        if ("Tüm kanallar".equals(cat)) {
+            list.addAll(channels);
         } else {
             for (Channel c : channels) if (c.category.equals(cat)) list.add(c);
         }
@@ -961,24 +1005,48 @@ public class PlayerActivity extends Activity {
 
     private void cycleSleep() {
         long now = System.currentTimeMillis();
-        int curMin = Prefs.sleepAt > now ? (int) ((Prefs.sleepAt - now + 59999) / 60000) : 0;
-        int nextMin = curMin == 0 ? 30 : curMin <= 30 ? 60 : curMin <= 60 ? 90 : 0;
-        Prefs.sleepAt = nextMin == 0 ? 0 : now + nextMin * 60000L;
-        Toast.makeText(this, nextMin == 0 ? "Uyku zamanlayıcısı kapatıldı"
-                : "Yayın " + nextMin + " dakika sonra kapanacak", Toast.LENGTH_SHORT).show();
+        int curMin = Prefs.sleepAt > now && !Prefs.sleepAtProgramEnd ? (int) ((Prefs.sleepAt - now + 59999) / 60000) : 0;
+        String msg;
+        if (Prefs.sleepAtProgramEnd) {
+            Prefs.sleepAtProgramEnd = false;
+            Prefs.sleepAt = 0;
+            msg = "Uyku zamanlayıcısı kapatıldı";
+        } else if (curMin > 60) {
+            Epg.Prog p = Epg.now(cur());
+            if (p != null) {
+                Prefs.sleepAtProgramEnd = true;
+                Prefs.sleepAt = p.end;
+                msg = "Yayın bu program bitince (" + Epg.hm(p.end) + ") kapanacak";
+            } else {
+                Prefs.sleepAt = 0;
+                msg = "Uyku zamanlayıcısı kapatıldı";
+            }
+        } else {
+            int nextMin = curMin == 0 ? 30 : curMin <= 30 ? 60 : 90;
+            Prefs.sleepAt = now + nextMin * 60000L;
+            msg = "Yayın " + nextMin + " dakika sonra kapanacak";
+        }
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         updateHint();
-        showOsd();
     }
 
     private void cancelSleep() {
         Prefs.sleepAt = 0;
+        Prefs.sleepAtProgramEnd = false;
         sleepPanel.setVisibility(View.GONE);
         Toast.makeText(this, "Uyku zamanlayıcısı iptal edildi", Toast.LENGTH_SHORT).show();
         updateHint();
     }
 
     private void goSleep() {
+        goSleep("Uyku modu\nDevam etmek için herhangi bir tuşa bas");
+    }
+
+    private void goSleep(String text) {
         Prefs.sleepAt = 0;
+        Prefs.sleepAtProgramEnd = false;
+        hideAsk();
+        hideControl();
         sleeping = true;
         stream.stop();
         hideZap();
@@ -986,7 +1054,7 @@ public class PlayerActivity extends Activity {
         spinner.setVisibility(View.GONE);
         hideOsd();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        sleepText.setText("Uyku modu\nDevam etmek için herhangi bir tuşa bas");
+        sleepText.setText(text);
         sleepPanel.setVisibility(View.VISIBLE);
         sleepPanel.setAlpha(0.6f);
     }
@@ -999,6 +1067,242 @@ public class PlayerActivity extends Activity {
         changeChannel(index);
     }
 
+    // ------------------------------------------------------------------ duraklat
+
+    private void togglePause() {
+        userPaused = state == 1;
+        if (usingYt) yt.toggle();
+        else stream.toggle();
+    }
+
+    // ------------------------------------------------------------------ Kontrol Merkezi
+
+    private void buildControl(FrameLayout root) {
+        ctrlPanel = new FrameLayout(this);
+        ctrlPanel.setClickable(true);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(px(26), px(24), px(26), px(20));
+        col.setBackground(Ui.rounded(this, 0xF01A1D26, 24));
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Ui.text(this, "Kontrol Merkezi", 22, Ui.BOLD, Ui.TEXT), new LinearLayout.LayoutParams(0, -2, 1f));
+        head.addView(Ui.text(this, "Geri: kapat", 12, Ui.MEDIUM, Ui.MUTED));
+        col.addView(head);
+        ScrollView sc = new ScrollView(this);
+        sc.setVerticalScrollBarEnabled(false);
+        sc.setClipToPadding(false);
+        ctrlList = new LinearLayout(this);
+        ctrlList.setOrientation(LinearLayout.VERTICAL);
+        ctrlList.setPadding(px(2), px(4), px(2), px(4));
+        sc.addView(ctrlList);
+        col.addView(sc, Ui.margins(this, -1, 0, 0, 14, 0, 0));
+        ((LinearLayout.LayoutParams) sc.getLayoutParams()).weight = 1f;
+        FrameLayout.LayoutParams cLp = new FrameLayout.LayoutParams(-1, -1);
+        ctrlPanel.addView(col, cLp);
+        ctrlPanel.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(px(420), -1, Gravity.END);
+        lp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this) * 0.6f), px(Ui.edgeY(this)));
+        root.addView(ctrlPanel, lp);
+    }
+
+    private interface Act { void run(); }
+
+    private LinearLayout ctrlRow(int icon, String title, String value, Object tag, final Act act) {
+        final LinearLayout r = new LinearLayout(this);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setFocusable(true);
+        r.setClickable(true);
+        r.setTag(tag);
+        r.setPadding(px(14), 0, px(16), 0);
+        final GradientDrawable bg = Ui.rounded(this, 0x14FFFFFF, 14);
+        r.setBackground(bg);
+        final ImageView iv = Ui.icon(this, icon, 20, Ui.TEXT);
+        r.addView(iv);
+        final TextView t = Ui.text(this, title, 16, Ui.BOLD, Ui.TEXT);
+        r.addView(t, Ui.margins(this, 0, -2, 14, 0, 8, 0));
+        ((LinearLayout.LayoutParams) t.getLayoutParams()).weight = 1f;
+        final TextView v = Ui.text(this, value == null ? "" : value, 14, Ui.MEDIUM, Ui.SOFT);
+        r.addView(v);
+        r.setLayoutParams(Ui.margins(this, -1, px(52), 0, 0, 0, 8));
+        r.setOnFocusChangeListener((x, has) -> {
+            bg.setColor(has ? Ui.WHITE : 0x14FFFFFF);
+            iv.setColorFilter(has ? Ui.BG : Ui.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+            t.setTextColor(has ? Ui.BG : Ui.TEXT);
+            v.setTextColor(has ? 0xFF4B5260 : Ui.SOFT);
+        });
+        r.setOnClickListener(x -> act.run());
+        return r;
+    }
+
+    private void fillControl(Object focusTag) {
+        ctrlList.removeAllViews();
+        AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        int vol = 0, max = 1;
+        boolean muted = false;
+        if (am != null) {
+            vol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+            max = Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+            if (android.os.Build.VERSION.SDK_INT >= 23) muted = am.isStreamMute(AudioManager.STREAM_MUSIC);
+        }
+        String prevName = prevIndex >= 0 && prevIndex < channels.size() ? channels.get(prevIndex).name : "yok";
+        ctrlList.addView(ctrlRow(R.drawable.ic_prev, "Önceki kanal", prevName, "prev", () -> {
+            if (prevIndex >= 0 && prevIndex < channels.size()) {
+                hideControl();
+                changeChannel(prevIndex);
+            }
+        }));
+        ctrlList.addView(ctrlRow(state == 2 ? R.drawable.ic_play : R.drawable.ic_pause,
+                state == 2 ? "Devam et" : "Duraklat", null, "pause", () -> {
+                    togglePause();
+                    ui.postDelayed(() -> fillControl("pause"), 250);
+                }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_refresh, "Yayını yenile", null, "refresh", () -> {
+            hideControl();
+            refresh();
+        }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_sound, "Ses", "◀  " + (vol * 100 / max) + "  ▶", "volume", () -> adjustVolume(1)));
+        ctrlList.addView(ctrlRow(R.drawable.ic_mute, "Sessiz", muted ? "Açık" : "Kapalı", "mute", () -> {
+            if (am != null) am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, 0);
+            fillControl("mute");
+        }));
+        String[] rm = {"Ekrana sığdır", "Ekranı doldur", "Yakınlaştır"};
+        ctrlList.addView(ctrlRow(R.drawable.ic_aspect, "Görüntü", rm[resizeMode], "aspect", () -> {
+            resizeMode = (resizeMode + 1) % 3;
+            stream.setResizeMode(resizeMode);
+            fillControl("aspect");
+        }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_moon, "Uyku zamanlayıcısı", sleepLabel(), "sleep", () -> {
+            cycleSleep();
+            fillControl("sleep");
+        }));
+        boolean night = Prefs.nightMode(this);
+        int[] nh = Prefs.NIGHT_HOURS[Prefs.nightHours(this)];
+        ctrlList.addView(ctrlRow(R.drawable.ic_w_moon, "Gece modu",
+                night ? String.format(Actions.TR, "%02d:00–%02d:00", nh[0], nh[1]) : "Kapalı", "night", () -> {
+                    Prefs.nightMode(this, !Prefs.nightMode(this));
+                    nightTick();
+                    fillControl("night");
+                }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_list, "Kanal listesi", null, "list", () -> {
+            hideControl();
+            showZap();
+        }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_gear, "Ayarlar", null, "settings", () -> {
+            hideControl();
+            startActivity(new Intent(this, SettingsActivity.class));
+        }));
+        View target = null;
+        for (int i = 0; i < ctrlList.getChildCount(); i++) {
+            View c = ctrlList.getChildAt(i);
+            if (focusTag != null && focusTag.equals(c.getTag())) target = c;
+        }
+        if (target == null && ctrlList.getChildCount() > 0) target = ctrlList.getChildAt(0);
+        if (target != null) target.requestFocus();
+    }
+
+    private String sleepLabel() {
+        if (Prefs.sleepAtProgramEnd) return "Program bitince";
+        long now = System.currentTimeMillis();
+        if (Prefs.sleepAt <= now) return "Kapalı";
+        return ((Prefs.sleepAt - now + 59999) / 60000) + " dk";
+    }
+
+    private void adjustVolume(int dir) {
+        AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (am == null) return;
+        am.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                dir > 0 ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+        nightTick();
+        fillControl("volume");
+    }
+
+    private void showControl() {
+        if (ctrlOpen) return;
+        hideZap();
+        hideOsd();
+        ctrlOpen = true;
+        fillControl(null);
+        ctrlPanel.setAlpha(0f);
+        ctrlPanel.setTranslationX(px(40));
+        ctrlPanel.setVisibility(View.VISIBLE);
+        ctrlPanel.animate().alpha(1f).translationX(0).setDuration(240).setInterpolator(Ui.EASE).start();
+    }
+
+    private void hideControl() {
+        if (!ctrlOpen) return;
+        ctrlOpen = false;
+        sink.requestFocus();
+        ctrlPanel.animate().alpha(0f).translationX(px(40)).setDuration(200).setInterpolator(Ui.EASE)
+                .withEndAction(() -> ctrlPanel.setVisibility(View.GONE)).start();
+    }
+
+    // ------------------------------------------------------------------ hâlâ izliyor musun · gece modu
+
+    private void buildAsk(FrameLayout root) {
+        askPanel = new LinearLayout(this);
+        askPanel.setOrientation(LinearLayout.VERTICAL);
+        askPanel.setGravity(Gravity.CENTER_HORIZONTAL);
+        askPanel.setPadding(px(44), px(36), px(44), px(34));
+        askPanel.setBackground(Ui.rounded(this, 0xF2181B23, 26));
+        askPanel.addView(Ui.text(this, "Hâlâ izliyor musun?", 30, Ui.BOLD, Ui.TEXT));
+        askText = Ui.text(this, "", 17, Ui.REGULAR, Ui.SOFT);
+        askText.setGravity(Gravity.CENTER);
+        askText.setLineSpacing(px(6), 1f);
+        askText.setMaxWidth(px(560));
+        askPanel.addView(askText, Ui.margins(this, -2, -2, 0, 16, 0, 0));
+        TextView hint = Ui.text(this, "Devam etmek için herhangi bir tuşa bas", 15, Ui.BOLD, Ui.BG);
+        hint.setPadding(px(22), px(12), px(22), px(12));
+        hint.setBackground(Ui.rounded(this, Ui.WHITE, 22));
+        askPanel.addView(hint, Ui.margins(this, -2, -2, 0, 24, 0, 0));
+        askPanel.setVisibility(View.GONE);
+        root.addView(askPanel, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+    }
+
+    private void hideAsk() {
+        if (askPanel != null && askPanel.getVisibility() == View.VISIBLE) {
+            askPanel.setVisibility(View.GONE);
+            lastInputAt = System.currentTimeMillis();
+        }
+    }
+
+    private void stillWatchingTick(long now) {
+        if (sleeping || stopped || !Prefs.stillWatching(this)) return;
+        if (askPanel.getVisibility() == View.VISIBLE) {
+            long left = ASK_MS - (now - askSince);
+            if (left <= 0) {
+                goSleep("Uzun süre tuşa basılmadığı için yayın durduruldu\nDevam etmek için herhangi bir tuşa bas");
+                return;
+            }
+            askText.setText("Uzun süredir hiçbir tuşa basılmadı. Cevap vermezsen yayın "
+                    + (left / 60000) + ":" + String.format(Actions.TR, "%02d", (left / 1000) % 60)
+                    + " sonra durdurulacak ve ekran kapanabilecek.");
+            return;
+        }
+        if (state == 1 && now - lastInputAt > STILL_WATCHING_MS) {
+            askSince = now;
+            hideOsd();
+            hideControl();
+            askPanel.setAlpha(0f);
+            askPanel.setVisibility(View.VISIBLE);
+            askPanel.animate().alpha(1f).setDuration(300).start();
+            stillWatchingTick(now);
+        }
+    }
+
+    private void nightTick() {
+        boolean night = Prefs.isNightNow(this);
+        nightDim.setVisibility(night && !sleeping ? View.VISIBLE : View.GONE);
+        if (!night) return;
+        AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (am == null) return;
+        int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int cap = Math.max(1, Math.round(max * 0.35f));
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) > cap) am.setStreamVolume(AudioManager.STREAM_MUSIC, cap, 0);
+    }
+
     // ------------------------------------------------------------------ kumanda
 
     @Override
@@ -1009,6 +1313,11 @@ public class PlayerActivity extends Activity {
             if (seekKeyUp(e)) return true;
         }
         if (e.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e);
+        lastInputAt = System.currentTimeMillis();
+        if (askPanel.getVisibility() == View.VISIBLE) {
+            hideAsk();
+            return true;
+        }
         if (k == KeyEvent.KEYCODE_VOLUME_UP || k == KeyEvent.KEYCODE_VOLUME_DOWN || k == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return super.dispatchKeyEvent(e);
         }
@@ -1027,6 +1336,26 @@ public class PlayerActivity extends Activity {
         if (k >= KeyEvent.KEYCODE_NUMPAD_0 && k <= KeyEvent.KEYCODE_NUMPAD_9) {
             addDigit(k - KeyEvent.KEYCODE_NUMPAD_0);
             return true;
+        }
+
+        if (ctrlOpen) {
+            switch (k) {
+                case KeyEvent.KEYCODE_BACK:
+                case KeyEvent.KEYCODE_MENU:
+                    hideControl();
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT: {
+                    View f = getCurrentFocus();
+                    if (f != null && "volume".equals(f.getTag())) {
+                        adjustVolume(k == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+                        return true;
+                    }
+                    return true;
+                }
+                default:
+                    return super.dispatchKeyEvent(e);
+            }
         }
 
         if (zapOpen) {
@@ -1098,14 +1427,14 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                userPaused = state == 1;
-                if (usingYt) yt.toggle();
-                else stream.toggle();
+                togglePause();
                 showOsd();
                 return true;
             case KeyEvent.KEYCODE_INFO:
-            case KeyEvent.KEYCODE_MENU:
                 showOsd();
+                return true;
+            case KeyEvent.KEYCODE_MENU:
+                showControl();
                 return true;
         }
         return super.dispatchKeyEvent(e);

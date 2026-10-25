@@ -54,6 +54,16 @@ public class Channel {
         this.color = c != null ? c : 0xFF2B3340;
     }
 
+    /** Aynı kanal, başka bir sırayla (kullanıcının düzenlediği dizilim için). */
+    Channel at(int newIndex) {
+        return new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube);
+    }
+
+    /** Aynı kanal, yedek yayın adresiyle. */
+    Channel withUrl(String newUrl) {
+        return new Channel(index, name, category, newUrl, logo, ua, referer, tvgId, youtube);
+    }
+
     static final String LOCAL_FILE = "channels.m3u";
     private static List<Channel> cache;
 

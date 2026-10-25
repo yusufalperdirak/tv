@@ -1,10 +1,19 @@
-# TV — Android TV uygulaması
+# TV (DIRAK) — Android TV launcher
 
 Türk kanallarını tek yerde toplayan, kumandayla kullanılan sade bir Android TV uygulaması.
 
 Bu uygulama Yusuf Alper Dırak tarafından oluşturulmuştur.
 
 **İndir (TV'de Downloader ile):** `github.com/yusufalperdirak/tv/releases/download/latest/TV.apk`
+
+## 7.0'da yeni
+- **Launcher:** ana ekranda son izlenen 2 kanal + numaralı tüm kanallar, altında cihazdaki uygulamalar. Kanal seçiliyken arkada önizleme, uygulama seçiliyken kayan manzara.
+- **Ana ekran tuşu:** Erişilebilirlik'te "TV ana ekran tuşu" açılınca kumandanın ana ekran tuşu bu uygulamayı açar.
+- **DIRAK açılışı** (cam tınısıyla), açılış sırasında son kanal arka planda hazırlanır.
+- **Tarayıcı** (Google altyapısı, reklam engelleyici, kumandayla imleç).
+- **Kontrol Merkezi** (Menü tuşu): önceki kanal, duraklat, ses, görüntü oranı, uyku (program bitince dahil), gece modu.
+- Saatin yanında **hava durumu, döviz kuru, ezan vakti**.
+- **Kanalları gizle/sırala**, **gece kanal taraması** ve yedek yayın, **ayarları yedekle** (kod ile), **tek tuşla güncelleme**, **"Hâlâ izliyor musun?"**, **gece modu**.
 
 ## Özellikler
 - **172 kanal**, 11 kategori (Ulusal, Haber, Spor, Eğlence, Film, Belgesel & Kültür, Müzik, Çocuk, Genel, Dini, Yurt Dışı).

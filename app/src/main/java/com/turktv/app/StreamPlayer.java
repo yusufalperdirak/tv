@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy;
+import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.PlayerView;
 
 import java.util.HashMap;
@@ -371,6 +372,12 @@ final class StreamPlayer {
 
     void setMuted(boolean m) {
         if (owner == this && shared != null) shared.setVolume(m ? 0f : 1f);
+    }
+
+    /** 0 sığdır, 1 doldur, 2 yakınlaştır */
+    void setResizeMode(int m) {
+        playerView.setResizeMode(m == 1 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+                : m == 2 ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
     }
 
     void release() {

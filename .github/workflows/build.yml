@@ -30,6 +30,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          CODE=$(grep -oP "versionCode \K[0-9]+" app/build.gradle)
+          NAME=$(grep -oP "versionName '\K[^']+" app/build.gradle)
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest TV.apk --title "TV (son sürüm)" \
-            --notes "TV'de Downloader ile: https://github.com/${{ github.repository }}/releases/download/latest/TV.apk"
+          gh release create latest TV.apk --title "TV $NAME (son sürüm)" \
+            --notes "TV'de Downloader ile: https://github.com/${{ github.repository }}/releases/download/latest/TV.apk
+          versionCode=$CODE versionName=$NAME"

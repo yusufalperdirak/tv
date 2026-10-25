@@ -44,7 +44,7 @@ public class SearchActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        channels = Channel.loadAll(this);
+        channels = Lineup.get(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -161,7 +161,7 @@ public class SearchActivity extends Activity {
     }
 
     private void open(Channel c) {
-        Prefs.last(this, c.index);
+        Prefs.watched(this, c);
         Intent i = new Intent(this, PlayerActivity.class);
         i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
         startActivity(i);
