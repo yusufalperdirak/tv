@@ -75,6 +75,18 @@ public class MainActivity extends Activity {
     private boolean checkedUpdate;
 
     private final Runnable previewRunnable = this::startPreview;
+    // 5 sn aynı kanalda durunca tam ekran izlemeye geç
+    private static final long AUTO_WATCH_MS = 5000;
+    private boolean autoArmed;      // kullanıcı kumandayla gezindiyse
+    private boolean autoPending;    // süre doldu, önizlemenin başlaması bekleniyor
+    private boolean previewPlaying;
+    private boolean leaving;
+    private FrameLayout uiLayer;
+    private final Runnable autoWatch = () -> {
+        if (!resumed || appsMode || !autoArmed || leaving || !hasWindowFocus()) return;
+        if (previewPlaying) fadeAndWatch();
+        else autoPending = true;
+    };
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
@@ -167,6 +179,8 @@ public class MainActivity extends Activity {
             @Override
             public void onState(int state) {
                 if (state == 1) {
+                    previewPlaying = true;
+                    if (autoPending && resumed && !appsMode) fadeAndWatch();
                     previewNote.setVisibility(View.GONE);
                     Health.report(selected, true);
                     refreshCards(selected);
@@ -188,18 +202,23 @@ public class MainActivity extends Activity {
         aerial.setVisibility(View.GONE);
         root.addView(aerial, new FrameLayout.LayoutParams(-1, -1));
 
+        // Önizleme dışındaki her şey bu katmanda: tam ekrana geçerken birlikte solar
+        uiLayer = new FrameLayout(this);
+        uiLayer.setClipChildren(false);
+        root.addView(uiLayer, new FrameLayout.LayoutParams(-1, -1));
+
         View scrimLeft = new View(this);
         scrimLeft.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
                 new int[]{0xB80B0D12, 0x700B0D12, 0x000B0D12}));
-        root.addView(scrimLeft, new FrameLayout.LayoutParams(px(760), -1, Gravity.START));
+        uiLayer.addView(scrimLeft, new FrameLayout.LayoutParams(px(760), -1, Gravity.START));
         View scrimBottom = new View(this);
         scrimBottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
                 new int[]{0xD90B0D12, 0x990B0D12, 0x400B0D12, 0x000B0D12}));
-        root.addView(scrimBottom, new FrameLayout.LayoutParams(-1, px(360), Gravity.BOTTOM));
+        uiLayer.addView(scrimBottom, new FrameLayout.LayoutParams(-1, px(360), Gravity.BOTTOM));
         View scrimTop = new View(this);
         scrimTop.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x800B0D12, 0x000B0D12}));
-        root.addView(scrimTop, new FrameLayout.LayoutParams(-1, px(140), Gravity.TOP));
+        uiLayer.addView(scrimTop, new FrameLayout.LayoutParams(-1, px(140), Gravity.TOP));
 
         previewNote = Ui.text(this, "", 14, Ui.MEDIUM, Ui.SOFT);
         previewNote.setPadding(px(14), px(8), px(14), px(8));
@@ -207,19 +226,19 @@ public class MainActivity extends Activity {
         previewNote.setVisibility(View.GONE);
         FrameLayout.LayoutParams pnLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         pnLp.setMargins(0, px(Ui.edgeY(this) + 66), px(Ui.edgeX(this)), 0);
-        root.addView(previewNote, pnLp);
+        uiLayer.addView(previewNote, pnLp);
 
-        buildStatus(root);
-        buildHero(root);
+        buildStatus(uiLayer);
+        buildHero(uiLayer);
 
         rowsCol = new LinearLayout(this);
         rowsCol.setOrientation(LinearLayout.VERTICAL);
         rowsCol.setClipChildren(false);
         rowsCol.setClipToPadding(false);
-        FrameLayout.LayoutParams rLp = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
+        FrameLayout.LayoutParams rLp = new FrameLayout.LayoutParams(-1, px(3000), Gravity.TOP); // uzun uygulama ızgarası sığsın
         rLp.topMargin = px(392);
-        root.addView(rowsCol, rLp);
-        root.setClipChildren(false);
+        uiLayer.addView(rowsCol, rLp);
+        uiLayer.setClipChildren(false);
 
         // Satır A: son izlenenler + kanallar (tek kaydırıcıda)
         chScroll = new HScroll(this);
@@ -242,15 +261,14 @@ public class MainActivity extends Activity {
         TextView appsLabel = Ui.text(this, "Uygulamalar", 16, Ui.MEDIUM, 0xFFC9CED6);
         appsLabel.setPadding(px(Ui.edgeX(this)), 0, 0, 0);
         rowB.addView(appsLabel);
-        appScroll = new HScroll(this);
-        styleScroll(appScroll);
+        // Uygulamalar: kanal kartı boyutunda, alt alta ızgara (Apple TV gibi)
         appCards = new LinearLayout(this);
-        appCards.setOrientation(LinearLayout.HORIZONTAL);
+        appCards.setOrientation(LinearLayout.VERTICAL);
         appCards.setClipChildren(false);
-        appCards.setPadding(px(Ui.edgeX(this)), px(12), px(400), px(30));
-        appScroll.addView(appCards);
-        rowB.addView(appScroll);
-        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 14, 0, 0));
+        appCards.setClipToPadding(false);
+        appCards.setPadding(px(Ui.edgeX(this)), px(14), px(Ui.edgeX(this)), px(260));
+        rowB.addView(appCards);
+        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 6, 0, 0));
 
         setContentView(root);
     }
@@ -518,6 +536,8 @@ public class MainActivity extends Activity {
             builtApps = key.toString();
             boolean hadFocus = appCards.hasFocus();
             appCards.removeAllViews();
+            int cols = Math.max(3, (int) ((1280 - 2 * Ui.edgeX(this) + 24) / (200 + 24)));
+            LinearLayout rowView = null;
             List<Apps.Entry> all = new ArrayList<>();
             all.add(Apps.builtin("Ara", R.drawable.ic_search, 0xFF2B3340, () -> go(new Intent(this, SearchActivity.class))));
             all.add(Apps.builtin("Tarayıcı", R.drawable.ic_globe, 0xFF0E7490, () -> go(new Intent(this, BrowserActivity.class))));
@@ -530,14 +550,21 @@ public class MainActivity extends Activity {
                 }
             }));
             all.addAll(list);
-            for (final Apps.Entry e : all) {
-                View card = Apps.card(this, e, 160, 90, (en, v, has) -> {
+            for (int i = 0; i < all.size(); i++) {
+                final Apps.Entry e = all.get(i);
+                if (i % cols == 0) {
+                    rowView = new LinearLayout(this);
+                    rowView.setOrientation(LinearLayout.HORIZONTAL);
+                    rowView.setClipChildren(false);
+                    appCards.addView(rowView, Ui.margins(this, -1, -2, 0, 0, 0, 28));
+                }
+                View card = Apps.card(this, e, 200, 113, (en, v, has) -> {
                     if (!has) return;
-                    scrollTo(appScroll, appCards, v);
                     setAppsMode(true);
+                    scrollGridTo(v);
                 });
                 card.setOnClickListener(v -> launch(e));
-                appCards.addView(card, Ui.margins(this, px(160), px(90), 0, 0, 16, 0));
+                rowView.addView(card, Ui.margins(this, px(200), px(113), 0, 0, 24, 0));
             }
             if (hadFocus && appCards.getChildCount() > 0) appCards.getChildAt(0).requestFocus();
         });
@@ -558,13 +585,21 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Uygulamalar satırına geçiş: arka plan manzaraya döner, satırlar yukarı kayar. */
+    /** Seçili uygulamanın sırası ekranın ortasına gelsin; üstteki kanallar yukarı kayar. */
+    private void scrollGridTo(View card) {
+        Rect r = new Rect();
+        card.getDrawingRect(r);
+        rowsCol.offsetDescendantRectToMyCoords(card, r);
+        int top = ((FrameLayout.LayoutParams) rowsCol.getLayoutParams()).topMargin;
+        float ty = Math.min(0, px(340) - (top + r.top));
+        rowsCol.animate().translationY(ty).setDuration(380).setInterpolator(Ui.EASE).start();
+    }
+
+    /** Uygulamalara geçiş: arka plan siyah-yeşile döner, kanal önizlemesi durur. */
     private void setAppsMode(boolean on) {
         if (appsMode == on) return;
         appsMode = on;
-        // satırlar hafifçe yukarı kayar; uygulamalar ekranın alt yarısında, manzara üstte tam görünür
-        int shift = Math.round(rowA.getHeight() * 0.45f);
-        rowsCol.animate().translationY(on ? -shift : 0).setDuration(380).setInterpolator(Ui.EASE).start();
+        if (!on) rowsCol.animate().translationY(0).setDuration(380).setInterpolator(Ui.EASE).start();
         rowA.animate().alpha(on ? 0.6f : 1f).setDuration(380).start();
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
         previewNote.setVisibility(View.GONE);
@@ -595,6 +630,9 @@ public class MainActivity extends Activity {
     private void select(Channel c) {
         boolean changed = c != selected;
         selected = c;
+        ui.removeCallbacks(autoWatch);
+        autoPending = false;
+        if (autoArmed) ui.postDelayed(autoWatch, AUTO_WATCH_MS);
         updateHero();
         if (changed) {
             hero.animate().cancel();
@@ -611,6 +649,7 @@ public class MainActivity extends Activity {
 
     private void startPreview() {
         if (!resumed || appsMode) return;
+        previewPlaying = false;
         final Channel c = selected;
         final boolean muted = !Prefs.previewSound(this);
         final int t = ++ytToken;
@@ -701,10 +740,31 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ kumanda
 
+    /** Diğer öğeler solarak kaybolur, önizlenen kanal kesintisiz tam ekrana geçer. */
+    private void fadeAndWatch() {
+        if (leaving) return;
+        leaving = true;
+        autoPending = false;
+        ui.removeCallbacks(autoWatch);
+        final Channel c = selected;
+        uiLayer.animate().alpha(0f).setDuration(650).setInterpolator(Ui.EASE).withEndAction(() -> {
+            if (!resumed) return;
+            Prefs.watched(this, c);
+            Intent i = new Intent(this, PlayerActivity.class);
+            i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
+            startActivity(i);
+            overridePendingTransition(0, android.R.anim.fade_out);
+        }).start();
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
+            autoArmed = true;
+            ui.removeCallbacks(autoWatch);
+            autoPending = false;
+            if (!appsMode && !leaving) ui.postDelayed(autoWatch, AUTO_WATCH_MS);
             if (k == KeyEvent.KEYCODE_SEARCH) {
                 Intent i = new Intent(this, SearchActivity.class);
                 i.putExtra(SearchActivity.EXTRA_VOICE, true);
@@ -777,6 +837,11 @@ public class MainActivity extends Activity {
             return;
         }
         resumed = true;
+        autoArmed = false;
+        autoPending = false;
+        leaving = false;
+        uiLayer.animate().cancel();
+        uiLayer.setAlpha(1f);
         channels = Lineup.get(this);
         selected = channels.get(Lineup.lastIndex(this));
         if (!lineupKey().equals(builtLineup)) {
@@ -823,6 +888,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         ui.removeCallbacks(previewRunnable);
+        ui.removeCallbacks(autoWatch);
         ui.removeCallbacks(tick);
         clock.stop();
         aerial.stop();
