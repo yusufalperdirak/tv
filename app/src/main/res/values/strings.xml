@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="home_service_label">TV ana ekran tuşu</string>
-    <string name="home_service_desc">Kumandadaki ana ekran tuşuna basınca TV uygulamasının ana ekranını açar. Ekran içeriği okunmaz; yalnızca TV\'nin kendi ana ekranı açıldığı anda devreye girer.</string>
+    <string name="home_service_label">GurbetTV ana ekran tuşu</string>
+    <string name="home_service_desc">Kumandadaki ana ekran tuşuna basınca GurbetTV\'nin ana ekranını açar. Ekran içeriği okunmaz; yalnızca TV\'nin kendi ana ekranı açıldığı anda devreye girer.</string>
 </resources>

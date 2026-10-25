@@ -58,7 +58,7 @@ public class SettingsActivity extends Activity {
         header.setGravity(Gravity.BOTTOM);
         header.addView(Ui.text(this, "Ayarlar", 40, Ui.BOLD, Ui.TEXT));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        header.addView(Ui.text(this, "DIRAK " + BuildConfig.VERSION_NAME, 17, Ui.REGULAR, Ui.MUTED));
+        header.addView(Ui.text(this, "GurbetTV " + BuildConfig.VERSION_NAME, 17, Ui.REGULAR, Ui.MUTED));
         root.addView(header);
 
         ScrollView scroll = new ScrollView(this);

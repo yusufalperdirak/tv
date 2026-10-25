@@ -22,7 +22,7 @@ import android.widget.TextView;
 import java.util.List;
 
 /**
- * Açılış: siyah ekranda "DIRAK" bulanıktan netleşerek belirir, üzerinden cam parıltısı geçer,
+ * Açılış: siyah ekranda "GurbetTV" bulanıktan netleşerek belirir, üzerinden cam parıltısı geçer,
  * cam tınısı çalar, sonra bulanıklaşarak kaybolur. Bu sırada son kanal arka planda hazırlanır.
  */
 public class SplashActivity extends Activity {
@@ -54,12 +54,12 @@ public class SplashActivity extends Activity {
         root.addView(glow, new FrameLayout.LayoutParams(-1, -1)); // tam ekran: ışık hiçbir kenarda kesilmez, kendiliğinden söner
 
         word = new TextView(this);
-        word.setText("DIRAK");
+        word.setText("GurbetTV");
         word.setTextColor(0xFFFFFFFF);
         word.setTypeface(Ui.THIN);
-        word.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Ui.px(this, 116));
+        word.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Ui.px(this, 104));
         word.setIncludeFontPadding(false);
-        word.setLetterSpacing(0.55f);
+        word.setLetterSpacing(0.40f);
         word.setGravity(Gravity.CENTER);
         word.setAlpha(0f);
         word.setScaleX(1.06f);
@@ -90,7 +90,7 @@ public class SplashActivity extends Activity {
         in.setInterpolator(ease);
         in.addUpdateListener(a -> {
             float f = (float) a.getAnimatedValue();
-            word.setLetterSpacing(0.55f - 0.17f * f);
+            word.setLetterSpacing(0.40f - 0.18f * f);
             setBlur(30f * (1 - f));
         });
         in.start();
