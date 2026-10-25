@@ -33,9 +33,26 @@ final class Ui {
     static final int SCRIM = 0xD10B0D12;
     static final int WHITE = 0xFFFFFFFF;
 
-    static final Typeface BOLD = Typeface.create("sans-serif", Typeface.BOLD);
-    static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
-    static final Typeface REGULAR = Typeface.create("sans-serif", Typeface.NORMAL);
+    // Yazı tipi: Inter (Apple'ın SF Pro'suna en yakın açık kaynak yazı tipi). App açılırken yüklenir.
+    static Typeface BOLD = Typeface.create("sans-serif", Typeface.BOLD);
+    static Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+    static Typeface REGULAR = Typeface.create("sans-serif", Typeface.NORMAL);
+    static Typeface THIN = Typeface.create("sans-serif-thin", Typeface.NORMAL);
+
+    static void initFonts(Context c) {
+        BOLD = load(c, "fonts/Inter-SemiBold.otf", BOLD);
+        MEDIUM = load(c, "fonts/Inter-Medium.otf", MEDIUM);
+        REGULAR = load(c, "fonts/Inter-Regular.otf", REGULAR);
+        THIN = load(c, "fonts/Inter-Thin.otf", THIN);
+    }
+
+    private static Typeface load(Context c, String path, Typeface fallback) {
+        try {
+            return Typeface.createFromAsset(c.getAssets(), path);
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
 
     /**
      * Güvenli kenar boşluğu (tasarım px). Birçok TV görüntünün kenarlarını kırpar (overscan);

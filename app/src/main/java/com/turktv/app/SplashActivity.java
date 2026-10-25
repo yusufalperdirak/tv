@@ -55,7 +55,7 @@ public class SplashActivity extends Activity {
         word = new TextView(this);
         word.setText("DIRAK");
         word.setTextColor(0xFFD3D8E0);
-        word.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
+        word.setTypeface(Ui.THIN);
         word.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Ui.px(this, 116));
         word.setIncludeFontPadding(false);
         word.setLetterSpacing(0.55f);
