@@ -70,11 +70,13 @@ public class MainActivity extends Activity {
     // uygulamaların ilk sırası alttan yalnızca biraz görünür
     private static final int ROWS_CLIP_TOP = 96, ROWS_TOP = 462, HERO_TOP = 292;
     // kanal paneli: kenar boşluğundan PANEL_IN dışarı taşar, içinde tam CARDS_VISIBLE kart sığar
+    // PANEL_OUT: panelin üstünde/altında boş alan; büyüyen kart ve gölgesi hiçbir yerden kesilmez
+    private static final int PANEL_OUT = 24;
     private static final int PANEL_IN = 24, PANEL_PAD_Y = 28, CARD_GAP = 26, CARDS_VISIBLE = 5;
     private int cardW = 200, cardH = 113;
     private static final int SYS_RED = 0xFFE30A17; // sistem uygulama kartları
     private static final int APP_W = 255, APP_H = 143, APP_GAP = 28;
-    private LinearLayout rowA;
+    private FrameLayout rowA;
     private HScroll chScroll, appScroll;
     private LinearLayout chContent, appCards;
     private final Map<String, List<View>> cardsByName = new HashMap<>();
@@ -266,18 +268,23 @@ public class MainActivity extends Activity {
         int usable = Math.round(1280 - 2 * Ui.edgeX(this));
         cardW = (usable - (CARDS_VISIBLE - 1) * CARD_GAP) / CARDS_VISIBLE;
         cardH = Math.round(cardW * 113f / 200f);
-        chContent.setPadding(px(PANEL_IN), px(PANEL_PAD_Y), px(PANEL_IN), px(PANEL_PAD_Y));
+        chContent.setPadding(px(PANEL_IN), px(PANEL_OUT + PANEL_PAD_Y), px(PANEL_IN), px(PANEL_OUT + PANEL_PAD_Y));
         chScroll.setFadingEdgeLength(px(PANEL_IN));
         chScroll.addView(chContent);
         // yarı saydam, yuvarlak köşeli panel; kaydırılan kartlar köşelerinden taşmaz
-        rowA = new LinearLayout(this);
-        rowA.setOrientation(LinearLayout.VERTICAL);
+        // panel zemini ayrı bir katman: kaydırıcı ondan daha yüksek, böylece kartlar yalnızca sağ-sol kenarda kırpılır
+        rowA = new FrameLayout(this);
+        View panelBg = new View(this);
         android.graphics.drawable.GradientDrawable panel = Ui.rounded(this, 0x700E1016, 34);
         panel.setStroke(Math.max(1, px(1)), 0x14FFFFFF);
-        rowA.setBackground(panel);
-        rowA.setClipToOutline(true);
-        rowA.addView(chScroll, new LinearLayout.LayoutParams(-1, -2));
-        rowsCol.addView(rowA, Ui.margins(this, -1, -2, Ui.edgeX(this) - PANEL_IN, 0, Ui.edgeX(this) - PANEL_IN, 0));
+        panelBg.setBackground(panel);
+        FrameLayout.LayoutParams bgLp = new FrameLayout.LayoutParams(-1, -1);
+        bgLp.setMargins(0, px(PANEL_OUT), 0, px(PANEL_OUT));
+        rowA.addView(panelBg, bgLp);
+        rowA.addView(chScroll, new FrameLayout.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams aLp = Ui.margins(this, -1, -2, Ui.edgeX(this) - PANEL_IN, 0, Ui.edgeX(this) - PANEL_IN, 0);
+        aLp.topMargin = -px(PANEL_OUT);
+        rowsCol.addView(rowA, aLp);
 
         // Satır B: uygulamalar
         LinearLayout rowB = new LinearLayout(this);
@@ -290,7 +297,7 @@ public class MainActivity extends Activity {
         appCards.setClipToPadding(false);
         appCards.setPadding(px(Ui.edgeX(this)), px(10), px(Ui.edgeX(this)), px(260));
         rowB.addView(appCards);
-        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 18, 0, 0));
+        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 18 - PANEL_OUT, 0, 0));
 
         setContentView(root);
     }
