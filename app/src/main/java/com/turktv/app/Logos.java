@@ -47,6 +47,7 @@ final class Logos {
 
     // ---- uygulamanın içine konmuş logolar (assets/logos): internet gerekmez, anında görünür
     private static Map<String, String> bundled;
+    private static final Map<String, Boolean> bundledLight = new ConcurrentHashMap<>();
 
     private static synchronized Map<String, String> bundledMap(Context c) {
         if (bundled != null) return bundled;
@@ -56,7 +57,15 @@ final class Logos {
             java.util.Iterator<String> it = o.keys();
             while (it.hasNext()) {
                 String k = it.next();
-                m.put(k, o.getString(k));
+                Object v = o.get(k);
+                if (v instanceof org.json.JSONObject) {
+                    org.json.JSONObject e = (org.json.JSONObject) v;
+                    m.put(k, e.getString("file"));
+                    // açık zemin gereken (koyu renkli) logolar
+                    bundledLight.put(k, "light".equals(e.optString("bg")));
+                } else {
+                    m.put(k, String.valueOf(v));
+                }
             }
         } catch (Exception ignored) {
         }
@@ -78,6 +87,13 @@ final class Logos {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Gömülü logo açık zemin mi istiyor (koyu renkli logo). */
+    static boolean bundledNeedsLight(Context c, String channelName) {
+        bundledMap(c);
+        Boolean b = bundledLight.get(channelName);
+        return b != null && b;
     }
 
     /** İnternetten gelen logo açık renkli mi (beyaz zeminde kaybolur). */

@@ -238,61 +238,6 @@ public class SettingsActivity extends Activity {
         addRow(list, scan);
         scan.valueView.setText("Şimdi tara  ›");
 
-        final Row bk = new Row();
-        bk.title = "Ayarları yedekle";
-        bk.sub = "Kanal sıran ve ayarların kısa bir koda kaydedilir";
-        bk.desc = "Uygulamayı yeniden kurarsan ya da başka bir TV'ye geçersen bu kodla her şeyi geri getirebilirsin. "
-                + "Yedek 1 yıl saklanır. Kodu bir yere not et.";
-        bk.icon = R.drawable.ic_backup;
-        bk.action = () -> {
-            bk.valueView.setText("Yedekleniyor…");
-            Backup.save(this, (code, err) -> {
-                if (isFinishing()) return;
-                bk.valueView.setText("Yedekle  ›");
-                if (code == null) {
-                    Toast.makeText(this, err, Toast.LENGTH_LONG).show();
-                    return;
-                }
-                TextView big = Ui.text(this, code, 44, Ui.BOLD, Ui.BG);
-                big.setLetterSpacing(0.12f);
-                big.setGravity(Gravity.CENTER);
-                big.setPadding(0, px(18), 0, px(6));
-                new android.app.AlertDialog.Builder(this)
-                        .setTitle("Yedek kodun")
-                        .setView(big)
-                        .setMessage("Bu kodu not et. Ayarlar › Yedekten geri yükle bölümüne yazınca her şey geri gelir. "
-                                + "Büyük/küçük harf önemlidir.")
-                        .setPositiveButton("Tamam", null)
-                        .show();
-            });
-        };
-        addRow(list, bk);
-        bk.valueView.setText("Yedekle  ›");
-
-        final Row rs = new Row();
-        rs.title = "Yedekten geri yükle";
-        rs.sub = "Yedek kodunu yaz";
-        rs.desc = "Daha önce aldığın yedek kodunu yazınca kanal sıran, gizlediğin kanallar ve ayarların geri gelir.";
-        rs.icon = R.drawable.ic_update;
-        rs.action = () -> {
-            final android.widget.EditText in = new android.widget.EditText(this);
-            in.setSingleLine(true);
-            in.setHint("ör. 7Gk2PqWx");
-            in.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(22));
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle("Yedek kodu")
-                    .setView(in)
-                    .setPositiveButton("Geri yükle", (d, w) -> Backup.restore(this, in.getText().toString(), (ok, err) -> {
-                        if (isFinishing()) return;
-                        Toast.makeText(this, ok != null ? "Ayarlar geri yüklendi" : err, Toast.LENGTH_LONG).show();
-                        if (ok != null) recreate();
-                    }))
-                    .setNegativeButton("Vazgeç", null)
-                    .show();
-        };
-        addRow(list, rs);
-        rs.valueView.setText("›");
-
         final Row up = new Row();
         up.title = "Güncellemeleri denetle";
         up.sub = "Sürüm " + BuildConfig.VERSION_NAME;

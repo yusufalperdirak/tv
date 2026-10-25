@@ -34,13 +34,15 @@ final class Cards {
         card.setClickable(focusable);
         card.setLongClickable(focusable);
 
-        // Beyaz zemin üzerinde kanal logosu; kartta yazı yok (logo yoksa kanal adı koyu renkle yazılır)
+        // Kartta yazı yok, yalnızca logo. Zemin logoya göre: açık renkli logo → koyu grafit,
+        // koyu renkli logo → açık zemin (logo hiçbir zaman zeminde kaybolmaz).
         final float radius = Math.max(10, h * 0.15f);
-        hd.bg = Ui.rounded(ctx, Ui.WHITE, radius);
+        final int DARK = 0xFF232833, LIGHT = 0xFFEEF0F3;
+        hd.bg = Ui.rounded(ctx, DARK, radius);
         card.setBackground(hd.bg);
         card.setClipToOutline(true);
 
-        final TextView big = Ui.text(ctx, c.name, Math.max(14, h * 0.2f), Ui.BOLD, 0xFF1A1D24);
+        final TextView big = Ui.text(ctx, c.name, Math.max(14, h * 0.2f), Ui.BOLD, Ui.WHITE);
         big.setGravity(Gravity.CENTER);
         big.setMaxLines(2);
         big.setEllipsize(TextUtils.TruncateAt.END);
@@ -57,11 +59,10 @@ final class Cards {
         if (own != null) {
             logo.setImageBitmap(own);
             big.setVisibility(View.GONE);
+            hd.bg.setColor(Logos.bundledNeedsLight(ctx, c.name) ? LIGHT : DARK);
         } else {
-            // gömülü logo yoksa listedeki logo adresi denenir; açık renkli logo koyu zemine alınır
-            Logos.into(ctx, c.logo, logo, big, 0xFF1F2430, color -> {
-                if (Logos.isLight(c.logo)) hd.bg.setColor(0xFF1F2430);
-            });
+            // gömülü logo yoksa listedeki logo adresi denenir; zemin logonun rengine göre seçilir
+            Logos.into(ctx, c.logo, logo, big, DARK, color -> hd.bg.setColor(color));
         }
 
         if (focusable) {
