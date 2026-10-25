@@ -50,7 +50,6 @@ final class ClockPill extends View {
         cut.setStrokeWidth(2.2f * s);
         cut.setStrokeCap(Paint.Cap.ROUND);
         cut.setStrokeJoin(Paint.Join.ROUND);
-        cutText.setXfermode(out);
         // ince rakamlar: Inter Thin + hafif kontur ≈ Light kalınlığı (hap içinde okunaklı kalır)
         cutText.setTypeface(Ui.THIN);
         cutText.setStyle(Paint.Style.FILL_AND_STROKE);
@@ -92,8 +91,11 @@ final class ClockPill extends View {
     protected void onDraw(Canvas cv) {
         float w = getWidth(), h = getHeight();
         rect.set(0, 0, w, h);
-        fill.setAlpha(isFocused() ? 255 : 209);
+        // yarı saydam siyah zemin, beyaz rakamlar; seçiliyken beyaz zemin, siyah rakamlar
+        boolean f = isFocused();
+        fill.setColor(f ? 0xFFFFFFFF : 0x8C000000);
         cv.drawRoundRect(rect, h / 2, h / 2, fill);
+        cutText.setColor(f ? 0xFF0B0D12 : 0xFFFFFFFF);
 
         // saat
         Calendar cal = Calendar.getInstance();
