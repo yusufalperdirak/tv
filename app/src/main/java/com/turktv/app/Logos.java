@@ -45,6 +45,47 @@ final class Logos {
 
     static final int LIGHT_PLATE = 0xFFEEF0F3;
 
+    // ---- uygulamanın içine konmuş logolar (assets/logos): internet gerekmez, anında görünür
+    private static Map<String, String> bundled;
+
+    private static synchronized Map<String, String> bundledMap(Context c) {
+        if (bundled != null) return bundled;
+        Map<String, String> m = new ConcurrentHashMap<>();
+        try (InputStream in = c.getAssets().open("logos/map.json")) {
+            org.json.JSONObject o = new org.json.JSONObject(Channel.readAll(in));
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                m.put(k, o.getString(k));
+            }
+        } catch (Exception ignored) {
+        }
+        bundled = m;
+        return m;
+    }
+
+    /** Kanalın uygulamaya gömülü logosu, yoksa null. */
+    static Bitmap bundled(Context c, String channelName) {
+        String f = bundledMap(c).get(channelName);
+        if (f == null) return null;
+        String key = "asset:" + f;
+        Bitmap b = mem.get(key);
+        if (b != null) return b;
+        try (InputStream in = c.getAssets().open("logos/" + f)) {
+            b = BitmapFactory.decodeStream(in);
+            if (b != null) mem.put(key, b);
+            return b;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** İnternetten gelen logo açık renkli mi (beyaz zeminde kaybolur). */
+    static boolean isLight(String url) {
+        Integer a = url == null ? null : colors.get(url);
+        return a != null && a == 0;
+    }
+
     /** Önbellekte varsa logodan çıkarılmış kart rengi, yoksa null. */
     static Integer cachedBg(String url, int fallbackBg) {
         if (url == null) return null;

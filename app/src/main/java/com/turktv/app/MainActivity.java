@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
 
     // satırlar
     private LinearLayout rowsCol;
+    private View statusBar;
     private FrameLayout rowsClip;
     // tasarım px (1280 genişlik): kartlar ekranın alt kısmında, önizleme geniş görünür;
     // uygulamaların ilk sırası alttan yalnızca biraz görünür
@@ -235,6 +236,7 @@ public class MainActivity extends Activity {
 
         buildStatus(uiLayer);
         buildHero(uiLayer);
+        hero.setVisibility(View.GONE); // kartların üstünde kanal bilgisi yazmaz: önizleme tek başına
 
         rowsCol = new LinearLayout(this);
         rowsCol.setOrientation(LinearLayout.VERTICAL);
@@ -323,6 +325,18 @@ public class MainActivity extends Activity {
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         lp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
         root.addView(bar, lp);
+        statusBar = bar;
+        // sağ üstte yalnızca saat
+        weatherIcon.setVisibility(View.GONE);
+        weatherText.setVisibility(View.GONE);
+        sepRates.setVisibility(View.GONE);
+        ratesText.setVisibility(View.GONE);
+        sepPrayer.setVisibility(View.GONE);
+        prayerText.setVisibility(View.GONE);
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View v = bar.getChildAt(i);
+            if (v != clock.view) v.setVisibility(View.GONE);
+        }
     }
 
     private View sep() {
@@ -419,7 +433,7 @@ public class MainActivity extends Activity {
             recentGroup = null;
             recentDivider = null;
         }
-        List<Channel> recent = Lineup.recent(this, 2);
+        List<Channel> recent = new ArrayList<>(); // "Son izlenenler" kaldırıldı
         if (recent.isEmpty()) return;
         recentGroup = group("Son izlenenler", null, recent);
         View div = new View(this);
@@ -471,7 +485,8 @@ public class MainActivity extends Activity {
                 channelMenu(c);
                 return true;
             });
-            cards.addView(card, Ui.margins(this, px(200), px(113), 0, 0, 16, 0));
+            // büyüyen kart komşusunun üstüne binmesin: aralık büyümeye yetecek kadar geniş
+            cards.addView(card, Ui.margins(this, px(200), px(113), 0, 0, 32, 0));
             List<View> l = cardsByName.get(c.name);
             if (l == null) {
                 l = new ArrayList<>();
@@ -611,6 +626,7 @@ public class MainActivity extends Activity {
         appsMode = on;
         if (!on) rowsCol.animate().translationY(0).setDuration(380).setInterpolator(Ui.EASE).start();
         rowA.animate().alpha(on ? 0.6f : 1f).setDuration(380).start();
+        statusBar.animate().alpha(on ? 0f : 1f).setDuration(400).setInterpolator(Ui.EASE).start();
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
         previewNote.setVisibility(View.GONE);
         if (on) {
@@ -718,6 +734,8 @@ public class MainActivity extends Activity {
     }
 
     private void updateStatus() {
+        if (statusBar != null) return; // sağ üstte yalnızca saat var
+
         dateText.setText(Actions.dateText());
         Info.Weather w = Info.weather(this);
         if (w != null) {

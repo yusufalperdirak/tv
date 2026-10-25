@@ -34,44 +34,35 @@ final class Cards {
         card.setClickable(focusable);
         card.setLongClickable(focusable);
 
+        // Beyaz zemin üzerinde kanal logosu; kartta yazı yok (logo yoksa kanal adı koyu renkle yazılır)
         final float radius = Math.max(10, h * 0.15f);
-        final int fallback = c.color;
-        Integer known = Logos.cachedBg(c.logo, fallback);
-        hd.bg = Ui.rounded(ctx, known != null ? known : fallback, radius);
+        hd.bg = Ui.rounded(ctx, Ui.WHITE, radius);
         card.setBackground(hd.bg);
         card.setClipToOutline(true);
 
-        // Logo yoksa kanal adı büyük yazılır
-        TextView big = Ui.text(ctx, c.name, Math.max(14, h * 0.22f), Ui.BOLD, Ui.WHITE);
+        final TextView big = Ui.text(ctx, c.name, Math.max(14, h * 0.2f), Ui.BOLD, 0xFF1A1D24);
         big.setGravity(Gravity.CENTER);
         big.setMaxLines(2);
         big.setEllipsize(TextUtils.TruncateAt.END);
-        big.setPadding(Ui.px(ctx, 10), 0, Ui.px(ctx, 10), Ui.px(ctx, h * 0.18f));
+        big.setPadding(Ui.px(ctx, 10), 0, Ui.px(ctx, 10), 0);
         card.addView(big, new FrameLayout.LayoutParams(-1, -1));
 
-        ImageView logo = new ImageView(ctx);
+        final ImageView logo = new ImageView(ctx);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         FrameLayout.LayoutParams lLp = new FrameLayout.LayoutParams(-1, -1);
-        lLp.setMargins(Ui.px(ctx, w * 0.12f), Ui.px(ctx, h * 0.12f), Ui.px(ctx, w * 0.12f), Ui.px(ctx, h * 0.30f));
+        lLp.setMargins(Ui.px(ctx, w * 0.14f), Ui.px(ctx, h * 0.16f), Ui.px(ctx, w * 0.14f), Ui.px(ctx, h * 0.16f));
         card.addView(logo, lLp);
 
-        if (h >= 60) {
-            View scrim = new View(ctx);
-            GradientDrawable sg = new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
-                    new int[]{0x8C000000, 0x00000000});
-            scrim.setBackground(sg);
-            card.addView(scrim, new FrameLayout.LayoutParams(-1, Ui.px(ctx, h * 0.48f), Gravity.BOTTOM));
-
-            hd.name = Ui.text(ctx, c.name, Math.max(11, h * 0.13f), Ui.BOLD, Ui.WHITE);
-            hd.name.setSingleLine(true);
-            hd.name.setEllipsize(TextUtils.TruncateAt.END);
-            FrameLayout.LayoutParams nLp = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-            nLp.setMargins(Ui.px(ctx, 12), 0, Ui.px(ctx, 10), Ui.px(ctx, h * 0.08f));
-            card.addView(hd.name, nLp);
-            hd.name.setVisibility(c.logo.isEmpty() ? View.GONE : View.VISIBLE);
+        android.graphics.Bitmap own = Logos.bundled(ctx, c.name);
+        if (own != null) {
+            logo.setImageBitmap(own);
+            big.setVisibility(View.GONE);
+        } else {
+            // gömülü logo yoksa listedeki logo adresi denenir; açık renkli logo koyu zemine alınır
+            Logos.into(ctx, c.logo, logo, big, 0xFF1F2430, color -> {
+                if (Logos.isLight(c.logo)) hd.bg.setColor(0xFF1F2430);
+            });
         }
-
-        Logos.into(ctx, c.logo, logo, big, fallback, color -> hd.bg.setColor(color));
 
         if (focusable) {
             card.setOnFocusChangeListener((v, has) -> {

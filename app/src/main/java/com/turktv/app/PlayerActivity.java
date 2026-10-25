@@ -94,7 +94,8 @@ public class PlayerActivity extends Activity {
     private TextView bubbleNum, bubbleLabel;
     private int seekAccum;        // art arda basışlarda toplam saniye (+ ileri, − geri)
     private LinearLayout tsRow;   // zaman çizgisi
-    private TextView tsLeft, tsLive;
+    private TextView tsLeft, tsLive, tsRight, tsTime;
+    private View tsAhead, tsLiveTick;
     private FrameLayout tsTrack;
     private View tsFill, tsKnob;
     private final Runnable hideBubble = () -> {
@@ -328,45 +329,58 @@ public class PlayerActivity extends Activity {
         progressFill.setBackground(Ui.rounded(this, Ui.TEXT, 2));
         bar.addView(progressFill, new FrameLayout.LayoutParams(0, -1));
         progressBar = bar;
-        panel.addView(bar, Ui.margins(this, -1, px(4), 0, 14, 0, 0));
+        bar.setVisibility(View.GONE); // program ilerlemesi artık zaman çizelgesinde
 
-        // Geri sarınca: zaman çizgisi (tam genişlik)
+        // Zaman çizelgesi (her zaman görünür): programın başlangıcı · oynatma noktası · canlı ucu · bitişi
         tsRow = new LinearLayout(this);
         tsRow.setOrientation(LinearLayout.HORIZONTAL);
-        tsRow.setGravity(Gravity.CENTER_VERTICAL);
-        tsLeft = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
-        tsLeft.setMinWidth(px(60));
-        tsRow.addView(tsLeft);
+        tsRow.setGravity(Gravity.BOTTOM);
+        tsLeft = Ui.text(this, "", 14, Ui.MEDIUM, 0xFFC9D0DB);
+        tsRow.addView(tsLeft, Ui.margins(this, -2, -2, 0, 0, 0, 1));
         tsTrack = new FrameLayout(this);
         tsTrack.setClipChildren(false);
         View base = new View(this);
         base.setBackground(Ui.rounded(this, 0x33F2F4F7, 3));
-        tsTrack.addView(base, new FrameLayout.LayoutParams(-1, px(6), Gravity.CENTER_VERTICAL));
+        tsTrack.addView(base, new FrameLayout.LayoutParams(-1, px(6), Gravity.BOTTOM));
+        tsAhead = new View(this); // oynatma noktasından canlı uca kadar (geri sarınca görünür)
+        tsAhead.setBackground(Ui.rounded(this, 0x66F2F4F7, 3));
+        tsTrack.addView(tsAhead, new FrameLayout.LayoutParams(0, px(6), Gravity.BOTTOM));
         tsFill = new View(this);
-        tsFill.setBackground(Ui.rounded(this, 0xD9F2F4F7, 3));
-        tsTrack.addView(tsFill, new FrameLayout.LayoutParams(0, px(6), Gravity.CENTER_VERTICAL));
+        tsFill.setBackground(Ui.rounded(this, 0xFFF2F4F7, 3));
+        tsTrack.addView(tsFill, new FrameLayout.LayoutParams(0, px(6), Gravity.BOTTOM));
+        tsLiveTick = new View(this);
+        tsLiveTick.setBackground(Ui.rounded(this, Ui.LIVE, 2));
+        FrameLayout.LayoutParams lt = new FrameLayout.LayoutParams(px(3), px(14), Gravity.BOTTOM);
+        lt.bottomMargin = -px(4);
+        tsTrack.addView(tsLiveTick, lt);
         tsKnob = new View(this);
         GradientDrawable kd = new GradientDrawable();
         kd.setShape(GradientDrawable.OVAL);
         kd.setColor(Ui.WHITE);
         tsKnob.setBackground(kd);
         tsKnob.setElevation(px(4));
-        tsTrack.addView(tsKnob, new FrameLayout.LayoutParams(px(16), px(16), Gravity.CENTER_VERTICAL));
-        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, px(20), 1f);
-        tLp.setMargins(px(10), 0, px(12), 0);
+        FrameLayout.LayoutParams kl = new FrameLayout.LayoutParams(px(16), px(16), Gravity.BOTTOM);
+        kl.bottomMargin = -px(5);
+        tsTrack.addView(tsKnob, kl);
+        tsTime = Ui.text(this, "", 14, Ui.BOLD, Ui.TEXT); // topuzun üstünde: oynatılan anın saati
+        tsTime.setPadding(px(8), px(3), px(8), px(3));
+        tsTime.setBackground(Ui.rounded(this, 0xCC0B0D12, 8));
+        tsTrack.addView(tsTime, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, px(40), 1f);
+        tLp.setMargins(px(14), 0, px(14), px(5));
         tsRow.addView(tsTrack, tLp);
+        tsRight = Ui.text(this, "", 14, Ui.MEDIUM, 0xFFC9D0DB);
+        tsRow.addView(tsRight, Ui.margins(this, -2, -2, 0, 0, 12, 1));
         tsLive = Ui.text(this, "●  CANLI", 13, Ui.BOLD, Ui.LIVE);
         tsLive.setLetterSpacing(0.08f);
         tsLive.setPadding(px(10), px(4), px(10), px(4));
         tsLive.setBackground(Ui.rounded(this, 0x33E30A17, 10));
-        tsRow.addView(tsLive);
+        tsRow.addView(tsLive, Ui.margins(this, -2, -2, 0, 0, 0, 0));
         tsRow.setVisibility(View.GONE);
-        panel.addView(tsRow, Ui.margins(this, -1, -2, 0, 12, 0, 0));
+        panel.addView(tsRow, Ui.margins(this, -1, -2, 0, 10, 0, 0));
 
         hint = Ui.text(this, "", 13, Ui.MEDIUM, Ui.MUTED);
-        hint.setSingleLine(true);
-        hint.setEllipsize(TextUtils.TruncateAt.END);
-        panel.addView(hint, Ui.margins(this, -1, -2, 0, 10, 0, 0));
+        hint.setVisibility(View.GONE); // alttaki tuş ipuçları kaldırıldı
 
         root.addView(osd, new FrameLayout.LayoutParams(-1, -1));
     }
@@ -743,7 +757,7 @@ public class PlayerActivity extends Activity {
         nowTitle.setText(now != null ? now.title : "—");
         nowTime.setText(now != null ? Epg.hm(now.start) + " – " + Epg.hm(now.end) : "");
         nextTitle.setText(next != null ? next.title + "  " + Epg.hm(next.start) : "—");
-        if (now != null) {
+        if (now != null && false) {
             progressBar.setVisibility(View.VISIBLE);
             final float pr = now.progress(System.currentTimeMillis());
             progressBar.post(() -> {
@@ -815,49 +829,68 @@ public class PlayerActivity extends Activity {
         if (osd.hasFocus()) btnList.requestFocus();
     }
 
-    /** Canlı mı, geride mi: etiket, zaman çizgisi ve "Canlıya dön" butonu. */
+    /** Zaman çizelgesi: program süresi içinde oynatma noktası ve canlı uç; geri sarınca "Canlıya dön" görünür. */
     private void updateTimeshift() {
         long behind = usingYt ? ytBehindSec * 1000 : stream.behindLiveMs();
         boolean playing = state == 1 || state == 2;
-        if (behind < 0 || !playing) {
-            liveBadge.setVisibility(View.GONE);
+        liveBadge.setVisibility(View.GONE);
+        if (!playing) {
             tsRow.setVisibility(View.GONE);
             btnLive.setVisibility(View.GONE);
             return;
         }
-        if (behind < 4000) { // canlı
-            liveBadge.setText("●  CANLI");
-            liveBadge.setTextColor(Ui.LIVE);
-            liveBadge.setVisibility(View.VISIBLE);
-            tsRow.setVisibility(View.GONE);
+        if (behind < 0) behind = 0;
+        boolean live = behind < 4000;
+        if (live) {
             if (btnLive.hasFocus()) btnList.requestFocus();
             btnLive.setVisibility(View.GONE);
-            return;
-        }
-        liveBadge.setVisibility(View.GONE);
-        btnLive.setVisibility(View.VISIBLE);
-        long sec = behind / 1000;
-        tsLeft.setText("−" + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60));
-
-        // oynatma noktasının geri sarılabilir pencere içindeki yeri
-        float frac;
-        long[] tl = usingYt ? null : stream.timeline();
-        if (tl != null) {
-            long liveEdge = Math.max(1, tl[1] - StreamPlayer.LIVE_OFFSET_MS);
-            frac = Math.max(0f, Math.min(1f, tl[0] / (float) liveEdge));
         } else {
-            long window = Math.max(sec + 60, 300);
-            frac = 1f - sec / (float) window;
+            btnLive.setVisibility(View.VISIBLE);
         }
+        long nowMs = System.currentTimeMillis();
+        long playMs = nowMs - behind;
+        long start, end;
+        Epg.Prog p = Epg.now(cur());
+        if (p != null && p.end > p.start) {
+            start = p.start;
+            end = p.end;
+            tsLeft.setText(Epg.hm(start));
+            tsRight.setText(Epg.hm(end));
+        } else {
+            // rehber yoksa: son 30 dakika
+            end = nowMs;
+            start = nowMs - 30 * 60_000L;
+            tsLeft.setText("−30 dk");
+            tsRight.setText("");
+        }
+        float span = Math.max(1, end - start);
+        final float fPlay = Math.max(0f, Math.min(1f, (playMs - start) / span));
+        final float fLive = Math.max(0f, Math.min(1f, (nowMs - start) / span));
+        String t = Epg.hm(playMs);
+        if (!live) {
+            long sec = behind / 1000;
+            t += "   −" + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60);
+        }
+        tsTime.setText(t);
+        tsLive.setTextColor(live ? Ui.LIVE : 0xFF8B95A7);
+        tsLive.setBackground(Ui.rounded(this, live ? 0x33E30A17 : 0x1FFFFFFF, 10));
         if (tsRow.getVisibility() != View.VISIBLE) Ui.fadeIn(tsRow, px(8));
-        final float f = frac;
         tsTrack.post(() -> {
             int w = tsTrack.getWidth();
             if (w <= 0) return;
             int knob = px(16);
-            tsFill.getLayoutParams().width = (int) (w * f);
+            tsFill.getLayoutParams().width = (int) (w * fPlay);
             tsFill.requestLayout();
-            tsKnob.animate().translationX(Math.max(0, Math.min(w - knob, w * f - knob / 2f))).setDuration(220).setInterpolator(Ui.EASE).start();
+            FrameLayout.LayoutParams al = (FrameLayout.LayoutParams) tsAhead.getLayoutParams();
+            al.width = (int) (w * Math.max(0f, fLive - fPlay));
+            al.leftMargin = (int) (w * fPlay);
+            tsAhead.setLayoutParams(al);
+            tsLiveTick.setTranslationX(Math.max(0, Math.min(w - px(3), w * fLive - px(1.5f))));
+            float kx = Math.max(0, Math.min(w - knob, w * fPlay - knob / 2f));
+            tsKnob.animate().translationX(kx).setDuration(260).setInterpolator(Ui.FOCUS).start();
+            int lw = tsTime.getWidth();
+            float lx = Math.max(0, Math.min(w - lw, w * fPlay - lw / 2f));
+            tsTime.animate().translationX(lx).setDuration(260).setInterpolator(Ui.FOCUS).start();
         });
     }
 
