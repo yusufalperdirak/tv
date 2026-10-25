@@ -159,6 +159,43 @@ public class SettingsActivity extends Activity {
         addRow(list, home);
         homeRow = home;
 
+        final Row key = new Row();
+        key.title = "Kontrol Merkezi tuşu";
+        key.sub = "İzlerken Kontrol Merkezi'ni açacak kumanda tuşu";
+        key.desc = "Menü ve Uygulamalar tuşları zaten çalışır. Kumandanda başka bir tuş kullanmak istersen OK'e bas, "
+                + "sonra o tuşa bas. Ana ekranda aynı tuş uygulamalar satırına geçirir. "
+                + "Not: bazı tuşları TV kendisi kullanır, o tuşlar uygulamaya hiç ulaşmaz.";
+        key.icon = R.drawable.ic_sliders;
+        key.action = () -> {
+            final android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(this)
+                    .setTitle("Tuşa bas")
+                    .setMessage("Kontrol Merkezi için kullanmak istediğin kumanda tuşuna şimdi bas.\n(İptal için Geri)")
+                    .create();
+            dlg.setOnKeyListener((d, code, ev) -> {
+                if (ev.getAction() != android.view.KeyEvent.ACTION_DOWN) return true;
+                if (code == android.view.KeyEvent.KEYCODE_BACK) {
+                    d.dismiss();
+                    return true;
+                }
+                if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
+                        || code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                        || code == android.view.KeyEvent.KEYCODE_DPAD_LEFT || code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                        || code == android.view.KeyEvent.KEYCODE_VOLUME_UP || code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+                    Toast.makeText(this, "Bu tuş kullanılamaz, başka bir tuş seç", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                Prefs.ctrlKey(this, code);
+                key.valueView.setText(keyLabel());
+                Toast.makeText(this, "Kaydedildi: " + android.view.KeyEvent.keyCodeToString(code).replace("KEYCODE_", ""),
+                        Toast.LENGTH_SHORT).show();
+                d.dismiss();
+                return true;
+            });
+            dlg.show();
+        };
+        addRow(list, key);
+        key.valueView.setText(keyLabel());
+
         final Row edit = new Row();
         edit.title = "Kanalları düzenle";
         edit.sub = "İzlemediğin kanalları gizle, sırayı değiştir";
@@ -349,6 +386,11 @@ public class SettingsActivity extends Activity {
         setContentView(root);
         rows.get(0).view.requestFocus();
         showAside(rows.get(0));
+    }
+
+    private String keyLabel() {
+        int k = Prefs.ctrlKey(this);
+        return (k == 0 ? "Menü / Uygulamalar" : android.view.KeyEvent.keyCodeToString(k).replace("KEYCODE_", "")) + "  ›";
     }
 
     private String nightLabel() {

@@ -91,12 +91,42 @@ public class HomeService extends AccessibilityService {
         return false;
     }
 
+    /**
+     * Erişilebilirlik ayarlarını açar. Bazı TV'lerde standart sayfa yok; sırayla bilinen sayfalar denenir,
+     * hiçbiri yoksa yol tarif edilir.
+     */
     static void openSettings(Activity a) {
-        try {
-            a.startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(a, "TV Ayarları › Sistem (veya Cihaz Tercihleri) › Erişilebilirlik › TV yolundan açın",
-                    Toast.LENGTH_LONG).show();
+        Intent[] tries = {
+                new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
+                new Intent().setClassName("com.android.tv.settings", "com.android.tv.settings.accessibility.AccessibilityActivity"),
+                new Intent().setClassName("com.android.tv.settings", "com.android.tv.settings.device.accessibility.AccessibilityActivity"),
+                new Intent().setClassName("com.android.settings", "com.android.settings.Settings$AccessibilitySettingsActivity"),
+                new Intent("android.settings.ACCESSIBILITY_SETTINGS_FOR_SUW"),
+        };
+        for (Intent i : tries) {
+            try {
+                if (i.resolveActivity(a.getPackageManager()) == null) continue;
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                a.startActivity(i);
+                Toast.makeText(a, "Listede \"TV ana ekran tuşu\"nu bul ve aç", Toast.LENGTH_LONG).show();
+                return;
+            } catch (Exception ignored) {
+            }
         }
+        new android.app.AlertDialog.Builder(a)
+                .setTitle("Erişilebilirlik ayarını elle aç")
+                .setMessage("Bu TV erişilebilirlik sayfasını doğrudan açmaya izin vermiyor. Şu yolu izle:\n\n"
+                        + "TV Ayarları › Cihaz Tercihleri (bazı TV'lerde Sistem) › Erişilebilirlik › "
+                        + "\"TV ana ekran tuşu\" › Aç\n\n"
+                        + "TV ayarlarını şimdi açmak için \"TV ayarlarını aç\"a bas.")
+                .setPositiveButton("TV ayarlarını aç", (d, w) -> {
+                    try {
+                        a.startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception e) {
+                        Toast.makeText(a, "TV ayarları açılamadı", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Kapat", null)
+                .show();
     }
 }

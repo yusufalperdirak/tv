@@ -194,8 +194,8 @@ public class MainActivity extends Activity {
         root.addView(scrimLeft, new FrameLayout.LayoutParams(px(760), -1, Gravity.START));
         View scrimBottom = new View(this);
         scrimBottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
-                new int[]{0xF20B0D12, 0xD90B0D12, 0x800B0D12, 0x000B0D12}));
-        root.addView(scrimBottom, new FrameLayout.LayoutParams(-1, px(470), Gravity.BOTTOM));
+                new int[]{0xD90B0D12, 0x990B0D12, 0x400B0D12, 0x000B0D12}));
+        root.addView(scrimBottom, new FrameLayout.LayoutParams(-1, px(360), Gravity.BOTTOM));
         View scrimTop = new View(this);
         scrimTop.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x800B0D12, 0x000B0D12}));
@@ -562,7 +562,8 @@ public class MainActivity extends Activity {
     private void setAppsMode(boolean on) {
         if (appsMode == on) return;
         appsMode = on;
-        int shift = rowA.getHeight() + px(6);
+        // satırlar hafifçe yukarı kayar; uygulamalar ekranın alt yarısında, manzara üstte tam görünür
+        int shift = Math.round(rowA.getHeight() * 0.45f);
         rowsCol.animate().translationY(on ? -shift : 0).setDuration(380).setInterpolator(Ui.EASE).start();
         rowA.animate().alpha(on ? 0.6f : 1f).setDuration(380).start();
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
@@ -716,8 +717,10 @@ public class MainActivity extends Activity {
                 else if (lastChannelCard != null && chScroll.getScrollX() > 0 && Cards.channel(lastChannelCard) != selected) focusSelectedChannel();
                 return true;
             }
-            if (k == KeyEvent.KEYCODE_MENU) {
-                go(new Intent(this, SettingsActivity.class));
+            if (Prefs.isControlKey(this, k)) {
+                // Uygulamalar / Menü tuşu: uygulamalar satırına geç (tekrar basınca kanallara dön)
+                if (appsMode) focusSelectedChannel();
+                else if (appCards.getChildCount() > 0) appCards.getChildAt(0).requestFocus();
                 return true;
             }
         } else if (k == KeyEvent.KEYCODE_BACK) {

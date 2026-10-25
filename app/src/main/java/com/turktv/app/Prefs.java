@@ -182,6 +182,18 @@ final class Prefs {
         p(c).edit().putString("cache_" + key, v).putLong("cacheAt_" + key, System.currentTimeMillis()).apply();
     }
 
+    /** Kontrol Merkezi'ni açan kumanda tuşu (kullanıcının öğrettiği), 0 = yok. */
+    static int ctrlKey(Context c) { return p(c).getInt("ctrlKey", 0); }
+    static void ctrlKey(Context c, int v) { p(c).edit().putInt("ctrlKey", v).apply(); }
+
+    /** Menü, Uygulamalar, Ayarlar tuşları ya da kullanıcının seçtiği tuş. */
+    static boolean isControlKey(Context c, int k) {
+        if (k == android.view.KeyEvent.KEYCODE_MENU || k == android.view.KeyEvent.KEYCODE_ALL_APPS
+                || k == android.view.KeyEvent.KEYCODE_SETTINGS) return true;
+        int own = ctrlKey(c);
+        return own != 0 && k == own;
+    }
+
     static int skippedUpdate(Context c) { return p(c).getInt("skippedUpdate", 0); }
     static void skippedUpdate(Context c, int v) { p(c).edit().putInt("skippedUpdate", v).apply(); }
 

@@ -857,12 +857,12 @@ public class PlayerActivity extends Activity {
             int knob = px(16);
             tsFill.getLayoutParams().width = (int) (w * f);
             tsFill.requestLayout();
-            tsKnob.animate().translationX(Math.max(0, w * f - knob / 2f)).setDuration(220).setInterpolator(Ui.EASE).start();
+            tsKnob.animate().translationX(Math.max(0, Math.min(w - knob, w * f - knob / 2f))).setDuration(220).setInterpolator(Ui.EASE).start();
         });
     }
 
     private void updateHint() {
-        String h = "◀▶ 10 sn sar (basılı tut: 1 dk)  ·  ▲▼ kanal  ·  OK menü  ·  Menü tuşu: Kontrol Merkezi";
+        String h = "◀▶ 10 sn sar (basılı tut: 1 dk)  ·  ▲▼ kanal  ·  OK menü  ·  Uygulamalar tuşu: Kontrol Merkezi";
         long now = System.currentTimeMillis();
         if (Prefs.sleepAt > now) h += "  ·  Uyku: " + ((Prefs.sleepAt - now + 59999) / 60000) + " dk";
         hint.setText(h);
@@ -1338,10 +1338,16 @@ public class PlayerActivity extends Activity {
             return true;
         }
 
+        if (Prefs.isControlKey(this, k)) {
+            if (e.getRepeatCount() > 0) return true;
+            if (ctrlOpen) hideControl();
+            else showControl();
+            return true;
+        }
+
         if (ctrlOpen) {
             switch (k) {
                 case KeyEvent.KEYCODE_BACK:
-                case KeyEvent.KEYCODE_MENU:
                     hideControl();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -1432,9 +1438,6 @@ public class PlayerActivity extends Activity {
                 return true;
             case KeyEvent.KEYCODE_INFO:
                 showOsd();
-                return true;
-            case KeyEvent.KEYCODE_MENU:
-                showControl();
                 return true;
         }
         return super.dispatchKeyEvent(e);
