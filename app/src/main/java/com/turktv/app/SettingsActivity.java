@@ -35,7 +35,66 @@ public class SettingsActivity extends Activity {
     }
 
     private final List<Row> rows = new ArrayList<>();
-    private Row homeRow, editRow;
+    private Row homeRow, editRow, todayRow;
+
+    private static String keyName(int code) {
+        if (code == 0) return "Atanmadı";
+        String n = android.view.KeyEvent.keyCodeToString(code).replace("KEYCODE_", "");
+        switch (n) {
+            case "PROG_RED": return "Kırmızı";
+            case "PROG_GREEN": return "Yeşil";
+            case "PROG_YELLOW": return "Sarı";
+            case "PROG_BLUE": return "Mavi";
+            case "MENU": return "Menü";
+            case "GUIDE": return "Rehber";
+            case "INFO": return "Bilgi";
+            case "ALL_APPS": return "Uygulamalar";
+            case "SETTINGS": return "Ayarlar";
+            case "BOOKMARK": return "Yer imi";
+            default: return n.replace('_', ' ');
+        }
+    }
+
+    /** Sonraki tuş basışını Bugün tuşu olarak kaydeder. */
+    private void learnTodayKey(Row row) {
+        final android.app.AlertDialog d = new android.app.AlertDialog.Builder(this)
+                .setTitle("Bugün tuşu")
+                .setMessage("Kumandada Bugün sayfasını açmasını istediğin tuşa şimdi bas.\n\nŞu an: " + keyName(Prefs.todayKey(this)))
+                .setNegativeButton("Vazgeç", null)
+                .setNeutralButton("Kaldır", (x, w) -> {
+                    Prefs.todayKey(this, 0);
+                    row.valueView.setText(keyName(0) + "  ›");
+                })
+                .create();
+        d.setOnKeyListener((di, code, ev) -> {
+            if (ev.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+            switch (code) {
+                case android.view.KeyEvent.KEYCODE_DPAD_UP:
+                case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
+                case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                case android.view.KeyEvent.KEYCODE_DPAD_CENTER:
+                case android.view.KeyEvent.KEYCODE_ENTER:
+                case android.view.KeyEvent.KEYCODE_BACK:
+                    return false; // yön, OK ve Geri atanamaz: diyalog düğmeleri için kalır
+                case android.view.KeyEvent.KEYCODE_HOME:
+                case android.view.KeyEvent.KEYCODE_POWER:
+                case android.view.KeyEvent.KEYCODE_VOLUME_UP:
+                case android.view.KeyEvent.KEYCODE_VOLUME_DOWN:
+                case android.view.KeyEvent.KEYCODE_VOLUME_MUTE:
+                case android.view.KeyEvent.KEYCODE_CHANNEL_UP:
+                case android.view.KeyEvent.KEYCODE_CHANNEL_DOWN:
+                    android.widget.Toast.makeText(this, "Bu tuş atanamaz, başka bir tuş dene", android.widget.Toast.LENGTH_SHORT).show();
+                    return true;
+            }
+            Prefs.todayKey(this, code);
+            row.valueView.setText(keyName(code) + "  ›");
+            android.widget.Toast.makeText(this, keyName(code) + " tuşu Bugün sayfasını açacak", android.widget.Toast.LENGTH_LONG).show();
+            d.dismiss();
+            return true;
+        });
+        d.show();
+    }
     private ImageView asideIcon;
     private TextView asideTitle, asideDesc, asideNote;
 
@@ -200,6 +259,16 @@ public class SettingsActivity extends Activity {
         r.toggleGet = () -> Prefs.stillWatching(this);
         r.toggleSet = v -> Prefs.stillWatching(this, v);
         addRow(list, r);
+
+        final Row today = new Row();
+        today.title = "Bugün tuşu";
+        today.sub = "Kumandadaki bir tuş Bugün sayfasını açsın";
+        today.desc = "Seçtiğin tuşa bastığında hava durumu, döviz kuru ve ezan vakitlerinin olduğu Bugün sayfası açılır; "
+                + "aynı tuşa tekrar basınca kapanır. Ana ekranda ve izlerken çalışır. Renkli tuşlar ya da kullanmadığın bir tuş idealdir.";
+        today.icon = R.drawable.ic_w_sun;
+        today.action = () -> learnTodayKey(today);
+        addRow(list, today);
+        todayRow = today;
 
         r = new Row();
         r.title = "Açılış sesi";
@@ -408,6 +477,7 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (todayRow != null) todayRow.valueView.setText(keyName(Prefs.todayKey(this)) + "  ›");
         if (homeRow != null) homeRow.valueView.setText(HomeWatch.active(this) ? "Etkin  ›" : "Etkin değil  ›");
         if (HomeWatch.hasUsage(this)) WakeService.start(this);
         if (editRow != null) editRow.valueView.setText(Lineup.get(this).size() + " görünür · " + Prefs.hidden(this).size() + " gizli  ›");

@@ -1474,6 +1474,13 @@ public class PlayerActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
+        if (Prefs.isTodayKey(this, e)) { // atanmış Bugün tuşu
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                startActivity(new Intent(this, TodayActivity.class));
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            }
+            return true;
+        }
         if (e.getAction() == KeyEvent.ACTION_UP && (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT
                 || k == KeyEvent.KEYCODE_MEDIA_REWIND || k == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)) {
             if (seekKeyUp(e)) return true;

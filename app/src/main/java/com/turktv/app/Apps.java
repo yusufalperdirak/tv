@@ -69,6 +69,7 @@ final class Apps {
         for (ResolveInfo r : l) {
             ActivityInfo a = r.activityInfo;
             if (a == null || !seen.add(a.packageName)) continue;
+            if (hidden(a.packageName, String.valueOf(r.loadLabel(pm)))) continue;
             Entry e = new Entry();
             e.pkg = a.packageName;
             e.label = String.valueOf(r.loadLabel(pm));
@@ -89,6 +90,12 @@ final class Apps {
         }
         Collections.sort(part, (x, y) -> x.label.compareToIgnoreCase(y.label));
         out.addAll(part);
+    }
+
+    /** Ana ekranda gösterilmeyen uygulamalar (ör. Launcher Manager). */
+    private static boolean hidden(String pkg, String label) {
+        String p = pkg.toLowerCase(java.util.Locale.ROOT), l = label.toLowerCase(java.util.Locale.ROOT).replace(" ", "");
+        return l.contains("launchermanager") || p.contains("launchermanager");
     }
 
     private static final int[] PALETTE = {0xFF0E7490, 0xFF4B5563, 0xFF2563EB, 0xFF6D28D9, 0xFFBE185D,

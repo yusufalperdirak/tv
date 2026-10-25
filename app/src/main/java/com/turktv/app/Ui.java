@@ -152,7 +152,6 @@ final class Ui {
                 .translationZ(has ? px(c, 16) : 0)
                 .setDuration(has ? 300 : 220)
                 .setInterpolator(FOCUS)
-                .withLayer()
                 .start();
     }
 

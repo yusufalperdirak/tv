@@ -40,21 +40,22 @@ public class SplashActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        root.setBackgroundColor(Color.WHITE); // beyaz zemin
 
-        // arkadaki yumuşak ışık
+        // yazının arkasındaki kırmızı ışık huzmesi: beyaz yazıyı beyaz zeminde belirgin yapar
         View glow = new View(this);
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT);
-        g.setColors(new int[]{0x2EAABEE6, 0x00AABEE6});
-        g.setGradientRadius(Ui.px(this, 380));
+        g.setColors(new int[]{0xFFD70A16, 0xCCE30A17, 0x00E30A17});
+        g.setGradientRadius(Ui.px(this, 560));
+        glow.setScaleY(0.55f); // yatay, yassı huzme
         glow.setBackground(g);
         glow.setAlpha(0f);
         root.addView(glow, new FrameLayout.LayoutParams(-1, -1)); // tam ekran: ışık hiçbir kenarda kesilmez, kendiliğinden söner
 
         word = new TextView(this);
         word.setText("DIRAK");
-        word.setTextColor(0xFFD3D8E0);
+        word.setTextColor(0xFFFFFFFF);
         word.setTypeface(Ui.THIN);
         word.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Ui.px(this, 116));
         word.setIncludeFontPadding(false);
@@ -99,7 +100,7 @@ public class SplashActivity extends Activity {
         word.post(() -> {
             int w = Math.max(1, word.getWidth());
             shine = new LinearGradient(0, 0, w * 0.35f, 0,
-                    new int[]{0xFFD3D8E0, 0xFFFFFFFF, 0xFFD3D8E0}, new float[]{0f, 0.5f, 1f},
+                    new int[]{0xFFFFFFFF, 0xFFFFE3E5, 0xFFFFFFFF}, new float[]{0f, 0.5f, 1f},
                     Shader.TileMode.CLAMP);
             ValueAnimator s = ValueAnimator.ofFloat(-0.4f, 1.2f);
             s.setStartDelay(IN_MS - 300);

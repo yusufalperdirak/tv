@@ -250,7 +250,10 @@ public class MainActivity extends Activity {
         rowsCol.setClipToPadding(false);
         // Satırlar saatin altından başlayan bir alanda kayar: yukarı kayınca sağ üstteki saatin üstüne binmez
         rowsClip = new FrameLayout(this);
-        rowsClip.setClipChildren(true);
+        // üstteki sınır (saatin altı) uiLayer'ın kırpmasıyla gelir; satırlar kendi sınırlarına göre kırpılmaz
+        rowsClip.setClipChildren(false);
+        rowsClip.addOnLayoutChangeListener((v, l, t, r, btm, ol, ot, or, ob) ->
+                v.setClipBounds(new Rect(0, 0, r - l, btm - t)));
         FrameLayout.LayoutParams cLp = new FrameLayout.LayoutParams(-1, -1);
         cLp.topMargin = px(ROWS_CLIP_TOP);
         uiLayer.addView(rowsClip, cLp);
@@ -264,6 +267,7 @@ public class MainActivity extends Activity {
         chContent = new LinearLayout(this);
         chContent.setOrientation(LinearLayout.HORIZONTAL);
         chContent.setClipChildren(false);
+        chContent.setClipToPadding(false);
         // kartlar panele tam sığsın: (ekran − 2·kenar − aralıklar) / 5
         int usable = Math.round(1280 - 2 * Ui.edgeX(this));
         cardW = (usable - (CARDS_VISIBLE - 1) * CARD_GAP) / CARDS_VISIBLE;
@@ -822,6 +826,10 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
+        if (Prefs.isTodayKey(this, e)) { // atanmış Bugün tuşu
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) go(new Intent(this, TodayActivity.class));
+            return true;
+        }
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             autoArmed = true;
             ui.removeCallbacks(autoWatch);

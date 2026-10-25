@@ -40,7 +40,9 @@ final class Cards {
         final int DARK = 0xFF232833, LIGHT = 0xFFEEF0F3;
         hd.bg = Ui.rounded(ctx, DARK, radius);
         card.setBackground(hd.bg);
-        card.setClipToOutline(true);
+        // içerik kenara değmez (logo içeride): kırpma yok, büyürken hiçbir yeri kesilmez
+        card.setClipToOutline(false);
+        card.setClipChildren(false);
 
         final TextView big = Ui.text(ctx, c.name, Math.max(14, h * 0.2f), Ui.BOLD, Ui.WHITE);
         big.setGravity(Gravity.CENTER);

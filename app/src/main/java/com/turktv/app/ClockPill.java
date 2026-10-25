@@ -20,7 +20,7 @@ import java.util.Calendar;
  */
 final class ClockPill extends View {
 
-    static final int H = 48, SEP_X = 45, TEXT_X = 56;
+    static final int W = 178, H = 48, SEP_X = 47, ICON_CX = 24;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -74,8 +74,7 @@ final class ClockPill extends View {
     @Override
     protected void onMeasure(int w, int h) {
         // genişlik saate göre: ikon · ayraç · saat birbirine yakın, sağ-sol boşluklar eşit
-        float tw = cutText.measureText("00:00");
-        setMeasuredDimension(Math.round(TEXT_X * s + tw + 17 * s), Math.round(H * s));
+        setMeasuredDimension(Math.round(W * s), Math.round(H * s));
     }
 
     void start() {
@@ -104,12 +103,12 @@ final class ClockPill extends View {
 
         if (active) { // Bugün sayfası açık: ikon tam beyaz bir dairenin içinde
             fill.setAlpha(255);
-            cv.drawCircle(25 * s, 24 * s, 18.5f * s, fill);
+            cv.drawCircle(ICON_CX * s, 24 * s, 18.5f * s, fill);
         }
 
         // takvim ikonu (24x24 kutu, 13,12'de)
         cv.save();
-        cv.translate(13 * s, 12 * s);
+        cv.translate((ICON_CX - 12) * s, 12 * s);
         icon.reset();
         RectF r = new RectF(2.5f * s, 4.5f * s, 21.5f * s, 20.5f * s);
         icon.addRoundRect(r, 4 * s, 4 * s, Path.Direction.CW);
@@ -136,7 +135,10 @@ final class ClockPill extends View {
         String hh = String.format(Actions.TR, "%02d", cal.get(Calendar.HOUR_OF_DAY));
         String mm = String.format(Actions.TR, "%02d", cal.get(Calendar.MINUTE));
         Paint.FontMetrics fm = cutText.getFontMetrics();
-        float x = TEXT_X * s, base = h / 2f - (fm.ascent + fm.descent) / 2f; // dikeyde tam ortada
+        // saat, çizgiden sonraki alanın tam ortasında (çizgiye ve sağ kenara eşit uzaklıkta)
+        float tw = cutText.measureText(hh + ":" + mm);
+        float areaL = (SEP_X + 2) * s, areaR = w;
+        float x = areaL + (areaR - areaL - tw) / 2f, base = h / 2f - (fm.ascent + fm.descent) / 2f; // dikeyde tam ortada
         cutText.setAlpha(255);
         cv.drawText(hh, x, base, cutText);
         x += cutText.measureText(hh);
