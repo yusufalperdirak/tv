@@ -58,6 +58,9 @@ final class StreamPlayer {
     private static String sharedUrl;
     private static StreamPlayer owner;
     private static boolean hasFrame;
+    // ekranlar arası geçişte son kare: yeni ekran ilk karesini çizene kadar bu gösterilir (kararma olmaz)
+    private static Bitmap handoff;
+    private static String handoffUrl;
     private static int quickRetries;
     private static final Runnable releaseIfUnused = () -> {
         if (owner == null && shared != null) {
@@ -117,8 +120,18 @@ final class StreamPlayer {
         if (!force && c.url.equals(sharedUrl) && p.getPlayerError() == null
                 && p.getPlaybackState() != Player.STATE_IDLE && p.getPlaybackState() != Player.STATE_ENDED) {
             p.setPlayWhenReady(true);
-            cover.setAlpha(1f);
-            cover.setVisibility(View.VISIBLE);
+            // Kesintisiz geçiş: önceki ekranın son karesi, bu ekranın ilk karesi gelene kadar üstte kalır
+            if (freeze.getVisibility() == View.VISIBLE) {
+                cover.setVisibility(View.GONE);
+                ui.postDelayed(() -> {
+                    if (owner == this) unfreeze();
+                }, 900);
+            } else if (!hasFrame) {
+                cover.setAlpha(1f);
+                cover.setVisibility(View.VISIBLE);
+            } else {
+                cover.setVisibility(View.GONE);
+            }
             final boolean playing = p.isPlaying();
             ui.post(() -> {
                 if (owner == this && listener != null) listener.onState(playing ? 1 : 3);
@@ -227,7 +240,19 @@ final class StreamPlayer {
     }
 
     private void attach() {
-        if (owner != null && owner != this) owner.playerView.setPlayer(null);
+        Bitmap carry = null;
+        if (owner != null && owner != this) {
+            carry = owner.grab();
+            owner.playerView.setPlayer(null);
+        } else if (owner == null && handoff != null && handoffUrl != null && handoffUrl.equals(sharedUrl)) {
+            carry = handoff;
+            handoff = null;
+        }
+        if (handoff != null && carry != handoff) {
+            handoff.recycle();
+            handoff = null;
+        }
+        if (carry != null && owner != this) showFrozen(carry);
         owner = this;
         ExoPlayer p = ensureShared();
         if (playerView.getPlayer() != p) playerView.setPlayer(p);
@@ -237,7 +262,7 @@ final class StreamPlayer {
 
     /** O an ekrandaki kareyi yakalayıp üstte donuk gösterir. */
     private void captureFrame() {
-        if (!hasFrame) return;
+        if (!hasFrame || freeze.getVisibility() == View.VISIBLE) return;
         View sv = playerView.getVideoSurfaceView();
         if (sv == null || sv.getWidth() <= 0 || sv.getHeight() <= 0) return;
         if (sv instanceof TextureView) {
@@ -296,7 +321,27 @@ final class StreamPlayer {
      * Ekran arka plana geçerken: oynatıcıyı bırakır ama hemen kapatmaz. Başka bir ekran
      * (ör. tam ekran izleme) kısa süre içinde devralırsa yayın kesilmeden sürer.
      */
+    /** Bu ekrandaki o anki görüntü (geçişte yeni ekrana taşınır). */
+    private Bitmap grab() {
+        if (!hasFrame) return null;
+        View sv = playerView.getVideoSurfaceView();
+        if (!(sv instanceof TextureView) || sv.getWidth() <= 0) return null;
+        try {
+            return ((TextureView) sv).getBitmap(Math.max(1, sv.getWidth() / 2), Math.max(1, sv.getHeight() / 2));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     void detach() {
+        if (owner == this) {
+            Bitmap b = grab();
+            if (b != null) {
+                if (handoff != null) handoff.recycle();
+                handoff = b;
+                handoffUrl = sharedUrl;
+            }
+        }
         clearFreeze();
         if (owner != this) return;
         owner = null;

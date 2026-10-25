@@ -138,6 +138,23 @@ final class Ui {
     // ------------------------------------------------------------------ yumuşak geçişler
 
     static final Interpolator EASE = new DecelerateInterpolator(1.8f);
+    /** Apple TV'deki odak hareketine benzer: hızlı başlar, yumuşakça oturur. */
+    static final Interpolator FOCUS = new android.view.animation.PathInterpolator(0.2f, 0.9f, 0.25f, 1f);
+
+    /** Seçilen kart: hafifçe büyür, biraz yükselir ve gölge alır; bırakılınca yerine oturur. */
+    static void focusLift(Context c, View v, boolean has) {
+        v.setPivotX(v.getWidth() / 2f);
+        v.setPivotY(v.getHeight() / 2f);
+        float s = has ? 1.10f : 1f;
+        v.animate().cancel();
+        v.animate().scaleX(s).scaleY(s)
+                .translationY(has ? -px(c, 3) : 0)
+                .translationZ(has ? px(c, 16) : 0)
+                .setDuration(has ? 300 : 220)
+                .setInterpolator(FOCUS)
+                .withLayer()
+                .start();
+    }
 
     /** Görünür yap: hafifçe kayarak belirir (dy: başlangıç kayması, px). */
     static void fadeIn(View v, float dy) {

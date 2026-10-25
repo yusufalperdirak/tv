@@ -152,9 +152,7 @@ final class Apps {
         }
 
         card.setOnFocusChangeListener((v, has) -> {
-            float sc = has ? 1.09f : 1f;
-            v.animate().scaleX(sc).scaleY(sc).setDuration(220).setInterpolator(Ui.EASE).start();
-            v.setElevation(has ? Ui.px(ctx, 18) : 0);
+            Ui.focusLift(ctx, v, has);
             if (onFocus != null) onFocus.focused(e, v, has);
         });
         return card;

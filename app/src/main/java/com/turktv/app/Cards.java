@@ -97,12 +97,13 @@ final class Cards {
     static void style(Context ctx, View v, boolean has) {
         Holder hd = (Holder) v.getTag();
         // Seçili kart çerçevesiz, hafifçe büyür ve gölge alır (taşınırken kesik çizgili çerçeve)
-        float s = has || hd.moving ? 1.09f : 1f;
-        v.animate().scaleX(s).scaleY(s).translationY(hd.moving ? -Ui.px(ctx, 10) : 0)
-                .setDuration(220).setInterpolator(Ui.EASE).start();
-        if (hd.moving) hd.bg.setStroke(Ui.px(ctx, 3), Ui.WHITE, Ui.px(ctx, 8), Ui.px(ctx, 5));
-        else hd.bg.setStroke(0, Ui.WHITE);
-        v.setElevation(has ? Ui.px(ctx, 18) : 0);
+        if (hd.moving) {
+            v.animate().scaleX(1.10f).scaleY(1.10f).translationY(-Ui.px(ctx, 10)).setDuration(220).setInterpolator(Ui.FOCUS).start();
+            hd.bg.setStroke(Ui.px(ctx, 3), Ui.WHITE, Ui.px(ctx, 8), Ui.px(ctx, 5));
+        } else {
+            hd.bg.setStroke(0, Ui.WHITE);
+            Ui.focusLift(ctx, v, has);
+        }
         refresh(v);
     }
 

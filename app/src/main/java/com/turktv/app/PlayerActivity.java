@@ -1470,7 +1470,7 @@ public class PlayerActivity extends Activity {
     @Override
     public void finish() {
         super.finish();
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        overridePendingTransition(0, android.R.anim.fade_out);
     }
 
     @Override

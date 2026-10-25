@@ -64,6 +64,11 @@ public class MainActivity extends Activity {
 
     // satırlar
     private LinearLayout rowsCol;
+    private FrameLayout rowsClip;
+    // tasarım px (1280 genişlik): kartlar ekranın alt kısmında, önizleme geniş görünür;
+    // uygulamaların ilk sırası alttan yalnızca biraz görünür
+    private static final int ROWS_CLIP_TOP = 96, ROWS_TOP = 478, HERO_TOP = 292;
+    private static final int APP_W = 255, APP_H = 143, APP_GAP = 28;
     private LinearLayout rowA;
     private HScroll chScroll, appScroll;
     private LinearLayout chContent, appCards;
@@ -209,11 +214,11 @@ public class MainActivity extends Activity {
 
         View scrimLeft = new View(this);
         scrimLeft.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{0xB80B0D12, 0x700B0D12, 0x000B0D12}));
+                new int[]{0x8C0B0D12, 0x400B0D12, 0x000B0D12}));
         uiLayer.addView(scrimLeft, new FrameLayout.LayoutParams(px(760), -1, Gravity.START));
         View scrimBottom = new View(this);
         scrimBottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
-                new int[]{0xD90B0D12, 0x990B0D12, 0x400B0D12, 0x000B0D12}));
+                new int[]{0xB30B0D12, 0x660B0D12, 0x1A0B0D12, 0x000B0D12}));
         uiLayer.addView(scrimBottom, new FrameLayout.LayoutParams(-1, px(360), Gravity.BOTTOM));
         View scrimTop = new View(this);
         scrimTop.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -235,10 +240,15 @@ public class MainActivity extends Activity {
         rowsCol.setOrientation(LinearLayout.VERTICAL);
         rowsCol.setClipChildren(false);
         rowsCol.setClipToPadding(false);
+        // Satırlar saatin altından başlayan bir alanda kayar: yukarı kayınca sağ üstteki saatin üstüne binmez
+        rowsClip = new FrameLayout(this);
+        rowsClip.setClipChildren(true);
+        FrameLayout.LayoutParams cLp = new FrameLayout.LayoutParams(-1, -1);
+        cLp.topMargin = px(ROWS_CLIP_TOP);
+        uiLayer.addView(rowsClip, cLp);
         FrameLayout.LayoutParams rLp = new FrameLayout.LayoutParams(-1, px(3000), Gravity.TOP); // uzun uygulama ızgarası sığsın
-        rLp.topMargin = px(392);
-        uiLayer.addView(rowsCol, rLp);
-        uiLayer.setClipChildren(false);
+        rLp.topMargin = px(ROWS_TOP - ROWS_CLIP_TOP);
+        rowsClip.addView(rowsCol, rLp);
 
         // Satır A: son izlenenler + kanallar (tek kaydırıcıda)
         chScroll = new HScroll(this);
@@ -366,7 +376,7 @@ public class MainActivity extends Activity {
         hero.addView(prog, Ui.margins(this, -1, -2, 0, 12, 0, 0));
 
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(px(640), -2, Gravity.TOP | Gravity.START);
-        lp.setMargins(px(Ui.edgeX(this)), px(178), 0, 0);
+        lp.setMargins(px(Ui.edgeX(this)), px(HERO_TOP), 0, 0);
         root.addView(hero, lp);
     }
 
@@ -536,7 +546,7 @@ public class MainActivity extends Activity {
             builtApps = key.toString();
             boolean hadFocus = appCards.hasFocus();
             appCards.removeAllViews();
-            int cols = Math.max(3, (int) ((1280 - 2 * Ui.edgeX(this) + 24) / (200 + 24)));
+            int cols = 4; // Apple TV gibi: sırada 4 uygulama
             LinearLayout rowView = null;
             List<Apps.Entry> all = new ArrayList<>();
             all.add(Apps.builtin("Ara", R.drawable.ic_search, 0xFF2B3340, () -> go(new Intent(this, SearchActivity.class))));
@@ -556,15 +566,15 @@ public class MainActivity extends Activity {
                     rowView = new LinearLayout(this);
                     rowView.setOrientation(LinearLayout.HORIZONTAL);
                     rowView.setClipChildren(false);
-                    appCards.addView(rowView, Ui.margins(this, -1, -2, 0, 0, 0, 28));
+                    appCards.addView(rowView, Ui.margins(this, -1, -2, 0, 0, 0, APP_GAP));
                 }
-                View card = Apps.card(this, e, 200, 113, (en, v, has) -> {
+                View card = Apps.card(this, e, APP_W, APP_H, (en, v, has) -> {
                     if (!has) return;
                     setAppsMode(true);
                     scrollGridTo(v);
                 });
                 card.setOnClickListener(v -> launch(e));
-                rowView.addView(card, Ui.margins(this, px(200), px(113), 0, 0, 24, 0));
+                rowView.addView(card, Ui.margins(this, px(APP_W), px(APP_H), 0, 0, i % cols == cols - 1 ? 0 : APP_GAP, 0));
             }
             if (hadFocus && appCards.getChildCount() > 0) appCards.getChildAt(0).requestFocus();
         });
@@ -590,8 +600,8 @@ public class MainActivity extends Activity {
         Rect r = new Rect();
         card.getDrawingRect(r);
         rowsCol.offsetDescendantRectToMyCoords(card, r);
-        int top = ((FrameLayout.LayoutParams) rowsCol.getLayoutParams()).topMargin;
-        float ty = Math.min(0, px(340) - (top + r.top));
+        int top = px(ROWS_TOP);
+        float ty = Math.min(0, px(330) - (top + r.top));
         rowsCol.animate().translationY(ty).setDuration(380).setInterpolator(Ui.EASE).start();
     }
 
@@ -742,18 +752,26 @@ public class MainActivity extends Activity {
 
     /** Diğer öğeler solarak kaybolur, önizlenen kanal kesintisiz tam ekrana geçer. */
     private void fadeAndWatch() {
+        fadeTo(selected, 650);
+    }
+
+    /** Ekrandaki öğeler solar, video hiç kararmadan tam ekran izlemeye geçilir. */
+    private void fadeTo(final Channel c, long ms) {
         if (leaving) return;
         leaving = true;
         autoPending = false;
         ui.removeCallbacks(autoWatch);
-        final Channel c = selected;
-        uiLayer.animate().alpha(0f).setDuration(650).setInterpolator(Ui.EASE).withEndAction(() -> {
-            if (!resumed) return;
+        uiLayer.animate().alpha(0f).setDuration(ms).setInterpolator(Ui.EASE).withEndAction(() -> {
+            if (!resumed) {
+                leaving = false;
+                uiLayer.setAlpha(1f);
+                return;
+            }
             Prefs.watched(this, c);
             Intent i = new Intent(this, PlayerActivity.class);
             i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
             startActivity(i);
-            overridePendingTransition(0, android.R.anim.fade_out);
+            overridePendingTransition(0, 0); // aynı görüntü devam eder: geçiş efekti yok
         }).start();
     }
 
@@ -797,6 +815,10 @@ public class MainActivity extends Activity {
     }
 
     private void openChannel(Channel c) {
+        if (resumed) {
+            fadeTo(c, 300);
+            return;
+        }
         Prefs.watched(this, c);
         Intent i = new Intent(this, PlayerActivity.class);
         i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
@@ -805,11 +827,6 @@ public class MainActivity extends Activity {
 
     private void maybeAskSetup() {
         if (HomeWatch.hasUsage(this)) WakeService.start(this);
-        if (!HomeWatch.active(this) && !Prefs.askedHome(this)) {
-            Prefs.askedHome(this, true);
-            HomeWatch.showSetup(this);
-            return;
-        }
         if (Prefs.autostart(this) && !Prefs.askedOverlay(this) && !Actions.hasOverlay(this)) {
             Prefs.askedOverlay(this, true);
             new AlertDialog.Builder(this)
@@ -855,7 +872,7 @@ public class MainActivity extends Activity {
         updateStatus();
         loadApps();
         ui.removeCallbacks(previewRunnable);
-        if (!appsMode) ui.postDelayed(previewRunnable, 250);
+        if (!appsMode) startPreview(); // izlemeden dönüşte görüntü hiç kesilmeden devam etsin
 
         Info.refresh(this, this::updateStatus);
         ui.postDelayed(() -> {
