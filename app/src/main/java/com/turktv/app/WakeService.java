@@ -9,7 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 
 /**
  * "TV açılınca otomatik başlat" için arka planda çalışan hafif servis.
@@ -20,12 +22,38 @@ public class WakeService extends Service {
 
     private static final String CHANNEL_ID = "autostart";
 
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private boolean screenIsOn = true;
+
+    /** Ana ekran tuşu izleme (kullanım erişimi varsa): ekran açıkken saniyede birkaç kez bakılır. */
+    private final Runnable watch = new Runnable() {
+        @Override
+        public void run() {
+            if (!screenIsOn) return;
+            HomeWatch.poll(WakeService.this);
+            ui.postDelayed(this, HomeWatch.hasUsage(WakeService.this) ? 600 : 5000);
+        }
+    };
+
     private final BroadcastReceiver screenOn = new BroadcastReceiver() {
         @Override
         public void onReceive(Context c, Intent i) {
+            if (Intent.ACTION_SCREEN_OFF.equals(i.getAction())) {
+                screenIsOn = false;
+                ui.removeCallbacks(watch);
+                return;
+            }
+            screenIsOn = true;
+            ui.removeCallbacks(watch);
+            ui.post(watch);
             if (Prefs.autostart(c)) launchApp(c);
         }
     };
+
+    /** Servis gerekli mi: otomatik açılış ya da ana ekran tuşu izleme. */
+    static boolean needed(Context c) {
+        return Prefs.autostart(c) || HomeWatch.hasUsage(c);
+    }
 
     static void start(Context c) {
         Intent i = new Intent(c, WakeService.class);
@@ -69,16 +97,19 @@ public class WakeService extends Service {
         }
         Notification n = b.setSmallIcon(R.drawable.ic_tv)
                 .setContentTitle("TV")
-                .setContentText("TV açılınca otomatik başlatma etkin")
+                .setContentText("Otomatik açılış ve ana ekran tuşu etkin")
                 .setOngoing(true)
                 .build();
         startForeground(1, n);
-        registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        f.addAction(Intent.ACTION_SCREEN_OFF);
+        registerReceiver(screenOn, f);
+        ui.post(watch);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!Prefs.autostart(this)) {
+        if (!needed(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -87,6 +118,7 @@ public class WakeService extends Service {
 
     @Override
     public void onDestroy() {
+        ui.removeCallbacks(watch);
         try {
             unregisterReceiver(screenOn);
         } catch (Exception ignored) {

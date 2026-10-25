@@ -125,8 +125,8 @@ final class Prefs {
     static boolean splashSound(Context c) { return p(c).getBoolean("splashSound", true); }
     static void splashSound(Context c, boolean v) { p(c).edit().putBoolean("splashSound", v).apply(); }
 
-    static boolean askedHome(Context c) { return p(c).getBoolean("askedHome", false); }
-    static void askedHome(Context c, boolean v) { p(c).edit().putBoolean("askedHome", v).apply(); }
+    static boolean askedHome(Context c) { return p(c).getBoolean("askedHome2", false); }
+    static void askedHome(Context c, boolean v) { p(c).edit().putBoolean("askedHome2", v).apply(); }
 
     static boolean showRates(Context c) { return p(c).getBoolean("showRates", true); }
     static void showRates(Context c, boolean v) { p(c).edit().putBoolean("showRates", v).apply(); }

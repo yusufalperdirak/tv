@@ -804,15 +804,10 @@ public class MainActivity extends Activity {
     }
 
     private void maybeAskSetup() {
-        if (!HomeService.enabled(this) && !Prefs.askedHome(this)) {
+        if (HomeWatch.hasUsage(this)) WakeService.start(this);
+        if (!HomeWatch.active(this) && !Prefs.askedHome(this)) {
             Prefs.askedHome(this, true);
-            new AlertDialog.Builder(this)
-                    .setTitle("Ana ekran tuşunu bu uygulamaya bağlayalım mı?")
-                    .setMessage("Kumandadaki ana ekran tuşuna basınca TV'nin kendi ana ekranı yerine bu uygulama açılsın. "
-                            + "Bunun için açılacak Erişilebilirlik sayfasında \"TV\" hizmetini bir kez açman yeterli.")
-                    .setPositiveButton("Ayarı aç", (d, w) -> HomeService.openSettings(this))
-                    .setNegativeButton("Sonra", null)
-                    .show();
+            HomeWatch.showSetup(this);
             return;
         }
         if (Prefs.autostart(this) && !Prefs.askedOverlay(this) && !Actions.hasOverlay(this)) {

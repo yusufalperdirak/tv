@@ -8,8 +8,7 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent intent) {
-        if (!Prefs.autostart(c)) return;
-        WakeService.start(c);
-        WakeService.launchApp(c);
+        if (WakeService.needed(c)) WakeService.start(c);
+        if (Prefs.autostart(c)) WakeService.launchApp(c);
     }
 }
