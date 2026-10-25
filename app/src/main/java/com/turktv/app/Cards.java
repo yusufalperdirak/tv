@@ -36,7 +36,7 @@ final class Cards {
 
         // Kartta yazı yok, yalnızca logo. Zemin logoya göre: açık renkli logo → koyu grafit,
         // koyu renkli logo → açık zemin (logo hiçbir zaman zeminde kaybolmaz).
-        final float radius = Math.max(10, h * 0.15f);
+        final float radius = Math.max(12, h * 0.23f); // daha yuvarlak köşeler
         final int DARK = 0xFF232833, LIGHT = 0xFFEEF0F3;
         hd.bg = Ui.rounded(ctx, DARK, radius);
         card.setBackground(hd.bg);

@@ -119,7 +119,7 @@ final class Apps {
         card.setFocusable(true);
         card.setClickable(true);
         card.setTag(e);
-        final android.graphics.drawable.GradientDrawable bg = Ui.rounded(ctx, e.color, 16);
+        final android.graphics.drawable.GradientDrawable bg = Ui.rounded(ctx, e.color, 30); // daha yuvarlak köşeler
         card.setBackground(bg);
         card.setClipToOutline(true);
 
@@ -142,6 +142,16 @@ final class Apps {
             }
             int s = Ui.px(ctx, h * 0.42f);
             col.addView(iv, new LinearLayout.LayoutParams(s, s));
+            card.setContentDescription(e.label);
+            if (e.builtinIcon != 0) { // sistem kartları: kırmızı zemin, beyaz simge, yazısız
+                iv.setColorFilter(Ui.WHITE, android.graphics.PorterDuff.Mode.SRC_IN);
+                card.addView(col, new FrameLayout.LayoutParams(-1, -1));
+                card.setOnFocusChangeListener((v, has) -> {
+                    Ui.focusLift(ctx, v, has);
+                    if (onFocus != null) onFocus.focused(e, v, has);
+                });
+                return card;
+            }
             TextView t = Ui.text(ctx, e.label, 13, Ui.BOLD, Ui.WHITE);
             t.setSingleLine(true);
             t.setEllipsize(TextUtils.TruncateAt.END);

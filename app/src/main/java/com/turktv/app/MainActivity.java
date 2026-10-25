@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
     private TextView previewNote;
 
     // üst bilgiler
-    private Clock clock;
+    private ClockPill clock;
     private ImageView weatherIcon;
     private TextView weatherText, ratesText, prayerText, dateText;
     private View sepRates, sepPrayer;
@@ -68,7 +68,11 @@ public class MainActivity extends Activity {
     private FrameLayout rowsClip;
     // tasarım px (1280 genişlik): kartlar ekranın alt kısmında, önizleme geniş görünür;
     // uygulamaların ilk sırası alttan yalnızca biraz görünür
-    private static final int ROWS_CLIP_TOP = 96, ROWS_TOP = 478, HERO_TOP = 292;
+    private static final int ROWS_CLIP_TOP = 96, ROWS_TOP = 462, HERO_TOP = 292;
+    // kanal paneli: kenar boşluğundan PANEL_IN dışarı taşar, içinde tam CARDS_VISIBLE kart sığar
+    private static final int PANEL_IN = 24, PANEL_PAD_Y = 28, CARD_GAP = 26, CARDS_VISIBLE = 5;
+    private int cardW = 200, cardH = 113;
+    private static final int SYS_RED = 0xFFE30A17; // sistem uygulama kartları
     private static final int APP_W = 255, APP_H = 143, APP_GAP = 28;
     private LinearLayout rowA;
     private HScroll chScroll, appScroll;
@@ -89,7 +93,7 @@ public class MainActivity extends Activity {
     private boolean leaving;
     private FrameLayout uiLayer;
     private final Runnable autoWatch = () -> {
-        if (!resumed || appsMode || !autoArmed || leaving || !hasWindowFocus()) return;
+        if (!resumed || appsMode || !autoArmed || leaving || !hasWindowFocus() || clock.isFocused()) return;
         if (previewPlaying) fadeAndWatch();
         else autoPending = true;
     };
@@ -258,29 +262,35 @@ public class MainActivity extends Activity {
         chContent = new LinearLayout(this);
         chContent.setOrientation(LinearLayout.HORIZONTAL);
         chContent.setClipChildren(false);
-        chContent.setPadding(px(Ui.edgeX(this)), 0, px(500), 0);
+        // kartlar panele tam sığsın: (ekran − 2·kenar − aralıklar) / 5
+        int usable = Math.round(1280 - 2 * Ui.edgeX(this));
+        cardW = (usable - (CARDS_VISIBLE - 1) * CARD_GAP) / CARDS_VISIBLE;
+        cardH = Math.round(cardW * 113f / 200f);
+        chContent.setPadding(px(PANEL_IN), px(PANEL_PAD_Y), px(PANEL_IN), px(PANEL_PAD_Y));
+        chScroll.setFadingEdgeLength(px(PANEL_IN));
         chScroll.addView(chContent);
+        // yarı saydam, yuvarlak köşeli panel; kaydırılan kartlar köşelerinden taşmaz
         rowA = new LinearLayout(this);
         rowA.setOrientation(LinearLayout.VERTICAL);
-        rowA.setClipChildren(false);
-        rowA.addView(chScroll);
-        rowsCol.addView(rowA);
+        android.graphics.drawable.GradientDrawable panel = Ui.rounded(this, 0x700E1016, 34);
+        panel.setStroke(Math.max(1, px(1)), 0x14FFFFFF);
+        rowA.setBackground(panel);
+        rowA.setClipToOutline(true);
+        rowA.addView(chScroll, new LinearLayout.LayoutParams(-1, -2));
+        rowsCol.addView(rowA, Ui.margins(this, -1, -2, Ui.edgeX(this) - PANEL_IN, 0, Ui.edgeX(this) - PANEL_IN, 0));
 
         // Satır B: uygulamalar
         LinearLayout rowB = new LinearLayout(this);
         rowB.setOrientation(LinearLayout.VERTICAL);
         rowB.setClipChildren(false);
-        TextView appsLabel = Ui.text(this, "Uygulamalar", 16, Ui.MEDIUM, 0xFFC9CED6);
-        appsLabel.setPadding(px(Ui.edgeX(this)), 0, 0, 0);
-        rowB.addView(appsLabel);
         // Uygulamalar: kanal kartı boyutunda, alt alta ızgara (Apple TV gibi)
         appCards = new LinearLayout(this);
         appCards.setOrientation(LinearLayout.VERTICAL);
         appCards.setClipChildren(false);
         appCards.setClipToPadding(false);
-        appCards.setPadding(px(Ui.edgeX(this)), px(14), px(Ui.edgeX(this)), px(260));
+        appCards.setPadding(px(Ui.edgeX(this)), px(10), px(Ui.edgeX(this)), px(260));
         rowB.addView(appCards);
-        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 6, 0, 0));
+        rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 18, 0, 0));
 
         setContentView(root);
     }
@@ -319,11 +329,21 @@ public class MainActivity extends Activity {
         dateText = Ui.text(this, "", 15, Ui.MEDIUM, 0xFFC9CED6);
         bar.addView(dateText, Ui.margins(this, -2, -2, 0, 0, 12, 0));
 
-        clock = new Clock(this);
-        bar.addView(clock.view);
+        clock = new ClockPill(this);
+        clock.setOnClickListener(v -> go(new Intent(this, TodayActivity.class)));
+        clock.setOnKeyListener((v, code, ev) -> {
+            if (ev.getAction() == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_DOWN) {
+                focusSelectedChannel();
+                return true;
+            }
+            return false;
+        });
+        bar.addView(clock);
 
+        // büyüyen hap kesilmesin: çevresinde boşluk bırak, kenar boşluğundan düş
+        bar.setPadding(px(10), px(10), px(10), px(10));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        lp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
+        lp.setMargins(0, px(Ui.edgeY(this) - 10), px(Ui.edgeX(this) - 10), 0);
         root.addView(bar, lp);
         statusBar = bar;
         // sağ üstte yalnızca saat
@@ -335,7 +355,7 @@ public class MainActivity extends Activity {
         prayerText.setVisibility(View.GONE);
         for (int i = 0; i < bar.getChildCount(); i++) {
             View v = bar.getChildAt(i);
-            if (v != clock.view) v.setVisibility(View.GONE);
+            if (v != clock) v.setVisibility(View.GONE);
         }
     }
 
@@ -461,19 +481,15 @@ public class MainActivity extends Activity {
         LinearLayout g = new LinearLayout(this);
         g.setOrientation(LinearLayout.VERTICAL);
         g.setClipChildren(false);
-        LinearLayout head = new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);
-        head.setGravity(Gravity.BOTTOM);
-        head.addView(Ui.text(this, title, 16, Ui.MEDIUM, 0xFFC9CED6));
-        if (count != null) head.addView(Ui.text(this, count, 14, Ui.REGULAR, 0xFF8E96A3), Ui.margins(this, -2, -2, 8, 0, 0, 0));
-        g.addView(head);
+        // başlık yok: kartlar doğrudan panelin içinde
         LinearLayout cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setClipChildren(false);
-        cards.setPadding(0, px(12), 0, px(30));
         g.addView(cards);
-        for (final Channel c : list) {
-            final View card = Cards.make(this, c, 200, 113, true, (ch, v, has) -> {
+        for (int i = 0; i < list.size(); i++) {
+            final Channel c = list.get(i);
+            final boolean last = i == list.size() - 1;
+            final View card = Cards.make(this, c, cardW, cardH, true, (ch, v, has) -> {
                 if (!has) return;
                 lastChannelCard = v;
                 scrollTo(chScroll, chContent, v);
@@ -485,8 +501,7 @@ public class MainActivity extends Activity {
                 channelMenu(c);
                 return true;
             });
-            // büyüyen kart komşusunun üstüne binmesin: aralık büyümeye yetecek kadar geniş
-            cards.addView(card, Ui.margins(this, px(200), px(113), 0, 0, 32, 0));
+            cards.addView(card, Ui.margins(this, px(cardW), px(cardH), 0, 0, last ? 0 : CARD_GAP, 0));
             List<View> l = cardsByName.get(c.name);
             if (l == null) {
                 l = new ArrayList<>();
@@ -504,7 +519,8 @@ public class MainActivity extends Activity {
         Rect r = new Rect();
         v.getDrawingRect(r);
         content.offsetDescendantRectToMyCoords(v, r);
-        hs.smoothScrollTo(Math.max(0, r.left - px(Ui.edgeX(this))), 0);
+        // kart panelin sol iç kenarına gelir; sona doğru kaydırma durur, böylece panelde hep tam 5 kart görünür
+        hs.smoothScrollTo(Math.max(0, r.left - px(PANEL_IN)), 0);
     }
 
     private void refreshCards(Channel c) {
@@ -564,10 +580,10 @@ public class MainActivity extends Activity {
             int cols = 4; // Apple TV gibi: sırada 4 uygulama
             LinearLayout rowView = null;
             List<Apps.Entry> all = new ArrayList<>();
-            all.add(Apps.builtin("Ara", R.drawable.ic_search, 0xFF2B3340, () -> go(new Intent(this, SearchActivity.class))));
-            all.add(Apps.builtin("Tarayıcı", R.drawable.ic_globe, 0xFF0E7490, () -> go(new Intent(this, BrowserActivity.class))));
-            all.add(Apps.builtin("Ayarlar", R.drawable.ic_gear, 0xFF3A4252, () -> go(new Intent(this, SettingsActivity.class))));
-            all.add(Apps.builtin("TV ayarları", R.drawable.ic_sliders, 0xFF2B3340, () -> {
+            all.add(Apps.builtin("Ara", R.drawable.ic_search, SYS_RED, () -> go(new Intent(this, SearchActivity.class))));
+            all.add(Apps.builtin("Tarayıcı", R.drawable.ic_globe, SYS_RED, () -> go(new Intent(this, BrowserActivity.class))));
+            all.add(Apps.builtin("Ayarlar", R.drawable.ic_gear, SYS_RED, () -> go(new Intent(this, SettingsActivity.class))));
+            all.add(Apps.builtin("TV ayarları", R.drawable.ic_sliders, SYS_RED, () -> {
                 try {
                     startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
                 } catch (Exception ex) {
@@ -627,6 +643,7 @@ public class MainActivity extends Activity {
         if (!on) rowsCol.animate().translationY(0).setDuration(380).setInterpolator(Ui.EASE).start();
         rowA.animate().alpha(on ? 0.6f : 1f).setDuration(380).start();
         statusBar.animate().alpha(on ? 0f : 1f).setDuration(400).setInterpolator(Ui.EASE).start();
+        clock.setFocusable(!on);
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
         previewNote.setVisibility(View.GONE);
         if (on) {

@@ -98,6 +98,40 @@ final class Info {
         }
     }
 
+    static String[] prayerNames() {
+        return PRAYER_NAMES;
+    }
+
+    /** Bugünün altı vakti ("05:22" …) ya da null */
+    static String[] prayerTimes(Context c) {
+        try {
+            JSONObject o = new JSONObject(Prefs.cache(c, "prayer"));
+            if (!o.optString("date").equals(today())) return null;
+            JSONObject t = o.getJSONObject("timings");
+            String[] r = new String[PRAYER_KEYS.length];
+            for (int i = 0; i < r.length; i++) r[i] = t.getString(PRAYER_KEYS[i]).substring(0, 5);
+            return r;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Bugünün {en yüksek, en düşük} sıcaklığı ya da null */
+    static double[] todayMaxMin(Context c) {
+        try {
+            JSONObject d = new JSONObject(Prefs.cache(c, "weather")).getJSONObject("daily");
+            return new double[]{d.getJSONArray("temperature_2m_max").getDouble(0),
+                    d.getJSONArray("temperature_2m_min").getDouble(0)};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Kur bilgisinin alındığı an (ms) */
+    static long ratesAt(Context c) {
+        return Prefs.cacheAt(c, "rates");
+    }
+
     static String label(int code) {
         if (code == 0) return "Açık";
         if (code <= 2) return "Parçalı bulutlu";

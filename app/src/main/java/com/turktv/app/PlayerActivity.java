@@ -67,6 +67,10 @@ public class PlayerActivity extends Activity {
     private FrameLayout logoSlot;
     private TextView osdNum, osdName, osdLoading;
     private LinearLayout epgRow;
+    // şimdi / sıradaki kartları
+    private LinearLayout progRow, nowCard, nextCard;
+    private ProgRing nowRing;
+    private TextView nowCardTitle, nowCardTime, nextCardTitle, nextCardTime, nextCardStart;
     private TextView nowTitle, nowTime, nextTitle;
     private View progressBar, progressFill;
     private TextView hint;
@@ -223,7 +227,7 @@ public class PlayerActivity extends Activity {
         View scrim = new View(this);
         scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
                 new int[]{0xEB000000, 0xB8000000, 0x00000000}));
-        osd.addView(scrim, new FrameLayout.LayoutParams(-1, px(300), Gravity.BOTTOM));
+        osd.addView(scrim, new FrameLayout.LayoutParams(-1, px(400), Gravity.BOTTOM));
 
         // Alt panel: üstte bilgi şeridi (logo · ad/rehber · butonlar), altında tam genişlikte
         // ilerleme / zaman çizgisi ve ipucu. Hiçbir satır ekran kenar boşluğunu aşamaz.
@@ -292,6 +296,7 @@ public class PlayerActivity extends Activity {
         nextTitle.setMaxWidth(px(220));
         epgRow.addView(nextTitle);
         mid.addView(epgRow, Ui.margins(this, -1, -2, 0, 8, 0, 0));
+        epgRow.setVisibility(View.GONE); // rehber artık alttaki kartlarda
 
         // Sağ: yalnızca yuvarlak simge butonlar (sabit, dar genişlik)
         LinearLayout btns = new LinearLayout(this);
@@ -376,13 +381,140 @@ public class PlayerActivity extends Activity {
         tsLive.setPadding(px(10), px(4), px(10), px(4));
         tsLive.setBackground(Ui.rounded(this, 0x33E30A17, 10));
         tsRow.addView(tsLive, Ui.margins(this, -2, -2, 0, 0, 0, 0));
-        tsRow.setVisibility(View.GONE);
-        panel.addView(tsRow, Ui.margins(this, -1, -2, 0, 10, 0, 0));
+        tsRow.setVisibility(View.GONE); // zaman çizelgesi kaldırıldı: yerine şimdi / sıradaki kartları
+        buildProgCards(panel);
 
         hint = Ui.text(this, "", 13, Ui.MEDIUM, Ui.MUTED);
         hint.setVisibility(View.GONE); // alttaki tuş ipuçları kaldırıldı
 
         root.addView(osd, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    /** Zaman çizelgesinin yerine: "Şimdi yayında" (halka + kalan dk) ve "Sıradaki" kartları. */
+    private void buildProgCards(LinearLayout panel) {
+        progRow = new LinearLayout(this);
+        progRow.setOrientation(LinearLayout.HORIZONTAL);
+        progRow.setClipChildren(false);
+        progRow.setClipToPadding(false);
+        progRow.setPadding(0, px(8), 0, px(8));
+
+        nowCard = new LinearLayout(this);
+        nowCard.setGravity(Gravity.CENTER_VERTICAL);
+        nowCard.setPadding(px(19), 0, px(28), 0);
+        nowCard.setBackground(Ui.rounded(this, 0xFFFFFFFF, 30));
+        nowCard.setElevation(px(8));
+        nowRing = new ProgRing(this);
+        nowCard.addView(nowRing, new LinearLayout.LayoutParams(px(84), px(84)));
+        LinearLayout nt = new LinearLayout(this);
+        nt.setOrientation(LinearLayout.VERTICAL);
+        TextView nl = Ui.text(this, "●  ŞİMDİ YAYINDA", 13, Ui.BOLD, 0xFFC20812);
+        nl.setLetterSpacing(0.06f);
+        nt.addView(nl);
+        nowCardTitle = Ui.text(this, "", 26, Ui.BOLD, 0xFF0B0D12);
+        nowCardTitle.setSingleLine(true);
+        nowCardTitle.setEllipsize(TextUtils.TruncateAt.END);
+        nt.addView(nowCardTitle, Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        nowCardTime = Ui.text(this, "", 15, Ui.MEDIUM, 0xFF4B5260);
+        nt.addView(nowCardTime, Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        LinearLayout.LayoutParams ntLp = new LinearLayout.LayoutParams(0, -2, 1f);
+        ntLp.leftMargin = px(20);
+        nowCard.addView(nt, ntLp);
+        progRow.addView(nowCard, new LinearLayout.LayoutParams(0, px(122), 640f));
+
+        nextCard = new LinearLayout(this);
+        nextCard.setGravity(Gravity.CENTER_VERTICAL);
+        nextCard.setPadding(px(19), 0, px(26), 0);
+        nextCard.setBackground(Ui.rounded(this, 0x24FFFFFF, 30));
+        LinearLayout circle = new LinearLayout(this);
+        circle.setOrientation(LinearLayout.VERTICAL);
+        circle.setGravity(Gravity.CENTER);
+        GradientDrawable cd = new GradientDrawable();
+        cd.setShape(GradientDrawable.OVAL);
+        cd.setColor(0x24FFFFFF);
+        circle.setBackground(cd);
+        circle.addView(Ui.icon(this, R.drawable.ic_update, 20, Ui.TEXT));
+        nextCardStart = Ui.text(this, "", 17, Ui.BOLD, Ui.TEXT);
+        circle.addView(nextCardStart, Ui.margins(this, -2, -2, 0, 3, 0, 0));
+        nextCard.addView(circle, new LinearLayout.LayoutParams(px(84), px(84)));
+        LinearLayout xt = new LinearLayout(this);
+        xt.setOrientation(LinearLayout.VERTICAL);
+        TextView xl = Ui.text(this, "SIRADAKİ", 13, Ui.BOLD, Ui.SOFT);
+        xl.setLetterSpacing(0.06f);
+        xt.addView(xl);
+        nextCardTitle = Ui.text(this, "", 22, Ui.BOLD, Ui.TEXT);
+        nextCardTitle.setSingleLine(true);
+        nextCardTitle.setEllipsize(TextUtils.TruncateAt.END);
+        xt.addView(nextCardTitle, Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        nextCardTime = Ui.text(this, "", 15, Ui.MEDIUM, Ui.SOFT);
+        xt.addView(nextCardTime, Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        LinearLayout.LayoutParams xtLp = new LinearLayout.LayoutParams(0, -2, 1f);
+        xtLp.leftMargin = px(20);
+        nextCard.addView(xt, xtLp);
+        LinearLayout.LayoutParams nxLp = new LinearLayout.LayoutParams(0, px(122), 436f);
+        nxLp.leftMargin = px(28);
+        progRow.addView(nextCard, nxLp);
+
+        // kumandayla seçilebilir: odakta Apple TV gibi hafifçe büyür
+        for (View v : new View[]{nowCard, nextCard}) {
+            v.setFocusable(true);
+            v.setClickable(true);
+            v.setOnFocusChangeListener((vv, has) -> {
+                vv.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f).translationZ(has ? px(12) : 0)
+                        .setDuration(has ? 300 : 220).setInterpolator(Ui.FOCUS).start();
+                if (has) showOsd();
+            });
+        }
+        progRow.setVisibility(View.GONE);
+        panel.addView(progRow, Ui.margins(this, -1, -2, 0, 12, 0, 0));
+    }
+
+    private static boolean isInside(View v, View parent) {
+        for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) if (p == parent) return true;
+        return false;
+    }
+
+    private static String dur(long ms) {
+        long m = Math.max(0, (ms + 59_999) / 60_000);
+        return m >= 60 ? (m / 60) + " sa " + (m % 60) + " dk" : m + " dk";
+    }
+
+    /** Kartları yeniler (rehber yoksa gizler). */
+    private void updateProg() {
+        if (progRow == null) return;
+        Channel c = cur();
+        Epg.Prog now = Epg.now(c), next = Epg.next(c);
+        if (now == null && next == null) {
+            if (progRow.hasFocus()) btnList.requestFocus();
+            progRow.setVisibility(View.GONE);
+            return;
+        }
+        long t = System.currentTimeMillis();
+        long behind = usingYt ? ytBehindSec * 1000 : stream.behindLiveMs();
+        if (now != null) {
+            nowCard.setVisibility(View.VISIBLE);
+            nowCardTitle.setText(now.title);
+            String time = Epg.hm(now.start) + " – " + Epg.hm(now.end);
+            if (behind >= 4000) {
+                long sec = behind / 1000;
+                time += "  ·  " + (sec / 60) + ":" + String.format(Actions.TR, "%02d", sec % 60) + " geride";
+            }
+            nowCardTime.setText(time);
+            long left = Math.max(0, now.end - t);
+            long m = (left + 59_999) / 60_000;
+            if (m >= 60) nowRing.set(now.progress(t), (m / 60) + " sa", (m % 60) + " dk kaldı");
+            else nowRing.set(now.progress(t), String.valueOf(m), "dk kaldı");
+        } else {
+            nowCard.setVisibility(View.GONE);
+        }
+        if (next != null) {
+            nextCard.setVisibility(View.VISIBLE);
+            nextCardTitle.setText(next.title);
+            nextCardStart.setText(Epg.hm(next.start));
+            nextCardTime.setText(next.start > t ? dur(next.start - t) + " sonra başlıyor" : Epg.hm(next.start) + " – " + Epg.hm(next.end));
+        } else {
+            nextCard.setVisibility(View.GONE);
+        }
+        if (progRow.getVisibility() != View.VISIBLE) Ui.fadeIn(progRow, px(8));
     }
 
     /** Dönen yükleme simgesi (beyaz). */
@@ -748,12 +880,12 @@ public class PlayerActivity extends Activity {
         Channel c = cur();
         Epg.Prog now = Epg.now(c);
         Epg.Prog next = Epg.next(c);
+        updateProg();
+        epgRow.setVisibility(View.GONE);
         if (now == null && next == null) {
-            epgRow.setVisibility(View.GONE);
             progressBar.setVisibility(View.GONE);
             return;
         }
-        epgRow.setVisibility(View.VISIBLE);
         nowTitle.setText(now != null ? now.title : "—");
         nowTime.setText(now != null ? Epg.hm(now.start) + " – " + Epg.hm(now.end) : "");
         nextTitle.setText(next != null ? next.title + "  " + Epg.hm(next.start) : "—");
@@ -874,7 +1006,8 @@ public class PlayerActivity extends Activity {
         tsTime.setText(t);
         tsLive.setTextColor(live ? Ui.LIVE : 0xFF8B95A7);
         tsLive.setBackground(Ui.rounded(this, live ? 0x33E30A17 : 0x1FFFFFFF, 10));
-        if (tsRow.getVisibility() != View.VISIBLE) Ui.fadeIn(tsRow, px(8));
+        updateProg(); // zaman çizelgesi yok: geride kalma süresi Şimdi kartında yazar
+        if (true) return;
         tsTrack.post(() -> {
             int w = tsTrack.getWidth();
             if (w <= 0) return;
@@ -1411,6 +1544,18 @@ public class PlayerActivity extends Activity {
                     return true;
                 default:
                     return super.dispatchKeyEvent(e);
+            }
+        }
+
+        // menü açıkken ▲▼: düğmeler ile şimdi/sıradaki kartları arasında gez; gidecek yer yoksa kanal değiştir
+        if ((k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN)
+                && osd.getVisibility() == View.VISIBLE && osd.hasFocus()) {
+            View f = getCurrentFocus();
+            View n = f == null ? null : f.focusSearch(k == KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP : View.FOCUS_DOWN);
+            if (n != null && isInside(n, osd)) {
+                n.requestFocus();
+                showOsd();
+                return true;
             }
         }
 
