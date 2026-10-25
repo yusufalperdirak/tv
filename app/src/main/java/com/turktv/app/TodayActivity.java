@@ -213,6 +213,7 @@ public class TodayActivity extends Activity {
                 break;
             }
         }
+        t.addView(spacer()); // vakitler kartın dikeyde ortasında dursun
         // sıradaki vakit büyük ve beyaz kartta
         if (next >= 0) {
             LinearLayout hi = new LinearLayout(this);
@@ -226,7 +227,7 @@ public class TodayActivity extends Activity {
             hi.addView(l1);
             String in = nextIn >= 60 ? (nextIn / 60) + " sa " + (nextIn % 60) + " dk sonra" : nextIn + " dk sonra";
             hi.addView(Ui.text(this, in, 22, Ui.BOLD, 0xFFC20812), Ui.margins(this, -2, -2, 0, 2, 0, 0));
-            t.addView(hi, Ui.margins(this, -1, -2, 0, 24, 0, 14));
+            t.addView(hi, Ui.margins(this, -1, -2, 0, 0, 0, 14));
         }
         // diğer vakitler: iki eşit sütun, her hücre kendi içinde ortalı
         LinearLayout g = new LinearLayout(this);
@@ -261,6 +262,7 @@ public class TodayActivity extends Activity {
         if (col % 2 == 1 && row != null && row.getChildCount() == 1)
             ((LinearLayout.LayoutParams) row.getChildAt(0).getLayoutParams()).rightMargin = 0;
         t.addView(g, new LinearLayout.LayoutParams(-1, -2));
+        t.addView(spacer());
         return t;
     }
 

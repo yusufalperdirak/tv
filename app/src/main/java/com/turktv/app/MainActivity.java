@@ -505,7 +505,10 @@ public class MainActivity extends Activity {
             final View card = Cards.make(this, c, cardW, cardH, true, (ch, v, has) -> {
                 if (!has) return;
                 lastChannelCard = v;
-                scrollTo(chScroll, chContent, v);
+                // sayfa sayfa: görünen 5 kartın içinde kayma olmaz; 6. karta geçince sonraki 5'e kayar
+                ViewGroup row = (ViewGroup) v.getParent();
+                int idx = row.indexOfChild(v);
+                scrollTo(chScroll, chContent, row.getChildAt((idx / CARDS_VISIBLE) * CARDS_VISIBLE));
                 setAppsMode(false);
                 select(ch);
             });
