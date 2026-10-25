@@ -30,7 +30,7 @@
 
     <application
         android:name=".App"
-        android:label="GurbetTV"
+        android:label="GurbeTV"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/banner"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"

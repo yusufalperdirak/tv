@@ -51,10 +51,9 @@ final class ClockPill extends View {
         cut.setStrokeCap(Paint.Cap.ROUND);
         cut.setStrokeJoin(Paint.Join.ROUND);
         // ince rakamlar: Inter Thin + hafif kontur ≈ Light kalınlığı (hap içinde okunaklı kalır)
-        cutText.setTypeface(Ui.THIN);
-        cutText.setStyle(Paint.Style.FILL_AND_STROKE);
-        cutText.setStrokeWidth(0.85f * s);
-        cutText.setTextSize(27 * s);
+        cutText.setTypeface(Ui.REGULAR); // koyu zeminde net okunan beyaz rakamlar
+        cutText.setStyle(Paint.Style.FILL);
+        cutText.setTextSize(28 * s);
         cutText.setLetterSpacing(0.02f);
         setFocusable(true);
         setClickable(true);
