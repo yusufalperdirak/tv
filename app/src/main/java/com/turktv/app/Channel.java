@@ -54,6 +54,11 @@ public class Channel {
         this.color = c != null ? c : 0xFF2B3340;
     }
 
+    /** Tarayıcıda bulunan bir video (kendi oynatıcımızda açmak için). */
+    static Channel web(String title, String url, String ua, String referer) {
+        return new Channel(0, title, "", url, "", ua, referer, "", "");
+    }
+
     /** Aynı kanal, başka bir sırayla (kullanıcının düzenlediği dizilim için). */
     Channel at(int newIndex) {
         return new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube);

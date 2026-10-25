@@ -2,6 +2,7 @@ package com.turktv.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -72,6 +73,20 @@ public class BrowserActivity extends Activity {
     private int blocked;
     private boolean scrollMode;
     private long okDownAt;
+    private Downloads downloads;
+    // sayfadaki videoyu yakalama
+    private String lastMedia;
+    private long lastMediaAt, lastClickAt;
+    private final Set<String> handledMedia = new HashSet<>();
+    private static final int REQ_VIDEO = 52;
+    private static final String HOOK_JS = "(function(){if(window.__dirak)return;window.__dirak=1;"
+            + "function hook(v){if(v.__d)return;v.__d=1;v.addEventListener('play',function(){"
+            // sessiz kendiliğinden oynayan (tanıtım) videoları sayma: yalnızca kullanıcı başlattıysa
+            + "var a=navigator.userActivation;if(v.muted&&a&&!a.isActive)return;"
+            + "try{DirakTV.onPlay(v.currentSrc||v.src||'',document.title||'')}catch(e){}},true);}"
+            + "function scan(){var l=document.getElementsByTagName('video');for(var i=0;i<l.length;i++)hook(l[i]);}"
+            + "scan();try{new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}"
+            + "})();";
     private final Runnable hideCursor = () -> {
         if (cursor != null && hovered == null) cursor.animate().alpha(0.3f).setDuration(500).start();
     };
@@ -239,6 +254,15 @@ public class BrowserActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(false);
         CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+        downloads = new Downloads(this);
+        web.setDownloadListener((url, ua, disp, mime, len) -> downloads.start(url, ua, disp, mime, web.getUrl()));
+        web.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void onPlay(String src, String title) {
+                ui.post(() -> videoStarted(src, title));
+            }
+        }, "DirakTV");
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
         web.setWebChromeClient(new WebChromeClient() {
@@ -247,6 +271,7 @@ public class BrowserActivity extends Activity {
                 progressFill.animate().cancel();
                 progressFill.setAlpha(1f);
                 progressFill.animate().scaleX(p / 100f).setDuration(200).start();
+                if (p >= 60) view.evaluateJavascript(HOOK_JS, null);
                 if (p >= 100) progressFill.animate().alpha(0f).setStartDelay(250).setDuration(300)
                         .withEndAction(() -> progressFill.setScaleX(0f)).start();
             }
@@ -262,6 +287,10 @@ public class BrowserActivity extends Activity {
                     });
                     return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
                 }
+                if (u != null && isMedia(u)) {
+                    final String m = u.toString();
+                    ui.post(() -> mediaSeen(m));
+                }
                 return null;
             }
 
@@ -272,8 +301,15 @@ public class BrowserActivity extends Activity {
             }
 
             @Override
+            public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript(HOOK_JS, null);
+            }
+
+            @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 if (!address.hasFocus()) address.setText(pretty(url));
+                handledMedia.clear();
+                lastMedia = null;
                 lockIcon.setImageAlpha(url != null && url.startsWith("https") ? 255 : 0);
             }
         });
@@ -326,6 +362,67 @@ public class BrowserActivity extends Activity {
         else url = "https://www.google.com/search?q=" + Uri.encode(q);
         web.loadUrl(url);
         leaveAddress();
+    }
+
+    // ------------------------------------------------------------------ video yakalama
+
+    /** Video dosyası ya da yayın listesi mi (parça dosyaları değil). */
+    private static boolean isMedia(Uri u) {
+        String path = u.getPath();
+        if (path == null) return false;
+        path = path.toLowerCase(Locale.ROOT);
+        return path.endsWith(".m3u8") || path.endsWith(".mpd") || path.endsWith(".mp4")
+                || path.endsWith(".webm") || path.endsWith(".mkv") || path.endsWith(".mov");
+    }
+
+    /** Sayfa bir video adresi yükledi: kullanıcı az önce tıkladıysa (iframe içindeki oynatıcılar) kendi oynatıcımızda aç. */
+    private void mediaSeen(String url) {
+        // yayın listesi, tek tek video dosyalarından önceliklidir
+        boolean manifest = url.toLowerCase(Locale.ROOT).contains(".m3u8") || url.toLowerCase(Locale.ROOT).contains(".mpd");
+        boolean recent = lastMedia != null && System.currentTimeMillis() - lastMediaAt < 4000;
+        if (!recent || manifest || !(lastMedia.contains(".m3u8") || lastMedia.contains(".mpd"))) {
+            lastMedia = url;
+            lastMediaAt = System.currentTimeMillis();
+        }
+        // iframe içindeki oynatıcılar: tıklamadan kısa süre sonra gelen yayın listesi (m3u8/mpd) açılır
+        if (manifest && System.currentTimeMillis() - lastClickAt < 12000) {
+            ui.removeCallbacks(launchSniffed);
+            ui.postDelayed(launchSniffed, 700); // kısa bekle: önce yayın listesi gelsin
+        }
+    }
+
+    private final Runnable launchSniffed = () -> {
+        if (lastMedia != null) openVideo(lastMedia, web.getTitle());
+    };
+
+    /** Sayfadaki bir video oynamaya başladı. */
+    private void videoStarted(String src, String title) {
+        String url = null;
+        if (src != null && (src.startsWith("http://") || src.startsWith("https://"))) url = src;
+        if (lastMedia != null && System.currentTimeMillis() - lastMediaAt < 60000
+                && (url == null || lastMedia.contains(".m3u8") || lastMedia.contains(".mpd"))) url = lastMedia;
+        if (url != null) openVideo(url, title);
+    }
+
+    private void openVideo(String url, String title) {
+        if (url == null || handledMedia.contains(url) || isFinishing()) return;
+        handledMedia.add(url);
+        ui.removeCallbacks(launchSniffed);
+        web.evaluateJavascript("(function(){var l=document.getElementsByTagName('video');for(var i=0;i<l.length;i++)try{l[i].pause()}catch(e){}})();", null);
+        Intent i = new Intent(this, VideoActivity.class)
+                .putExtra(VideoActivity.EXTRA_URL, url)
+                .putExtra(VideoActivity.EXTRA_TITLE, title != null && !title.isEmpty() ? title : web.getTitle())
+                .putExtra(VideoActivity.EXTRA_REFERER, web.getUrl())
+                .putExtra(VideoActivity.EXTRA_UA, web.getSettings().getUserAgentString());
+        startActivityForResult(i, REQ_VIDEO);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        if (req == Downloads.REQ && downloads != null)
+            downloads.onPermission(res.length > 0 && res[0] == android.content.pm.PackageManager.PERMISSION_GRANTED);
     }
 
     // ------------------------------------------------------------------ imleç
@@ -435,6 +532,7 @@ public class BrowserActivity extends Activity {
         }
         if (inBarZone()) return;
         float x = cx - page.getLeft(), y = cy - page.getTop();
+        lastClickAt = System.currentTimeMillis();
         long t = SystemClock.uptimeMillis();
         MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
         down.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
@@ -537,6 +635,7 @@ public class BrowserActivity extends Activity {
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
+        if (downloads != null) downloads.close();
         web.destroy();
         super.onDestroy();
     }

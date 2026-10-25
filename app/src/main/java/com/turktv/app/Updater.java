@@ -158,7 +158,7 @@ final class Updater {
                 }
             } else if (status != PackageInstaller.STATUS_SUCCESS) {
                 String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-                Toast.makeText(c, "Güncelleme kurulamadı" + (msg != null ? ": " + msg : ""), Toast.LENGTH_LONG).show();
+                Toast.makeText(c, "Kurulamadı" + (msg != null ? ": " + msg : ""), Toast.LENGTH_LONG).show();
             }
         }
     }

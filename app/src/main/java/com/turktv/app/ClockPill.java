@@ -52,7 +52,7 @@ final class ClockPill extends View {
         cut.setStrokeCap(Paint.Cap.ROUND);
         cut.setStrokeJoin(Paint.Join.ROUND);
         cutText.setXfermode(out);
-        cutText.setTypeface(Ui.BOLD);
+        cutText.setTypeface(Ui.REGULAR); // ince rakamlar
         cutText.setTextSize(27 * s);
         cutText.setLetterSpacing(0.02f);
         setFocusable(true);

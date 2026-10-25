@@ -171,7 +171,9 @@ final class StreamPlayer {
                         .setMinPlaybackSpeed(1f)
                         .setMaxPlaybackSpeed(1f)
                         .build());
-        if (c.url.toLowerCase(Actions.TR).contains("m3u8")) item.setMimeType(MimeTypes.APPLICATION_M3U8);
+        String lu = c.url.toLowerCase(Actions.TR);
+        if (lu.contains("m3u8")) item.setMimeType(MimeTypes.APPLICATION_M3U8);
+        else if (lu.contains(".mpd")) item.setMimeType(MimeTypes.APPLICATION_MPD);
         return new DefaultMediaSourceFactory(http)
                 // geçici sunucu hatalarında hemen pes etme
                 .setLoadErrorHandlingPolicy(new DefaultLoadErrorHandlingPolicy(8))
@@ -389,6 +391,10 @@ final class StreamPlayer {
         if (owner != this || shared == null) return false;
         long pos = shared.getCurrentPosition();
         long dur = shared.getDuration();
+        if (!shared.isCurrentMediaItemLive() && dur != C.TIME_UNSET && dur > 0) { // video (canlı değil)
+            shared.seekTo(Math.max(0, Math.min(dur - 1000, pos + ms)));
+            return true;
+        }
         if (ms > 0) {
             if (dur == C.TIME_UNSET || pos + ms >= dur - LIVE_OFFSET_MS) goLive();
             else shared.seekTo(pos + ms);
@@ -405,6 +411,18 @@ final class StreamPlayer {
         long dur = shared.getDuration();
         if (dur == C.TIME_UNSET || dur <= 0) return null;
         return new long[]{shared.getCurrentPosition(), dur};
+    }
+
+    /** Canlı olmayan video için {konum, süre} (ms); bilinmiyorsa null. */
+    long[] position() {
+        if (owner != this || shared == null || shared.isCurrentMediaItemLive()) return null;
+        long dur = shared.getDuration();
+        if (dur == C.TIME_UNSET || dur <= 0) return null;
+        return new long[]{shared.getCurrentPosition(), dur};
+    }
+
+    boolean isPlaying() {
+        return owner == this && shared != null && shared.getPlayWhenReady();
     }
 
     void goLive() {
