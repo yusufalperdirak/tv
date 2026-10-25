@@ -50,7 +50,7 @@ public class SplashActivity extends Activity {
         g.setGradientRadius(Ui.px(this, 380));
         glow.setBackground(g);
         glow.setAlpha(0f);
-        root.addView(glow, new FrameLayout.LayoutParams(Ui.px(this, 900), Ui.px(this, 420), Gravity.CENTER));
+        root.addView(glow, new FrameLayout.LayoutParams(-1, -1)); // tam ekran: ışık hiçbir kenarda kesilmez, kendiliğinden söner
 
         word = new TextView(this);
         word.setText("DIRAK");

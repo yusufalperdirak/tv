@@ -282,7 +282,9 @@ public class MainActivity extends Activity {
         bgLp.setMargins(0, px(PANEL_OUT), 0, px(PANEL_OUT));
         rowA.addView(panelBg, bgLp);
         rowA.addView(chScroll, new FrameLayout.LayoutParams(-1, -2));
-        LinearLayout.LayoutParams aLp = Ui.margins(this, -1, -2, Ui.edgeX(this) - PANEL_IN, 0, Ui.edgeX(this) - PANEL_IN, 0);
+        // yükseklik sabit: zemin görünümü (match_parent) panelin boyunu ekran kadar uzatmasın
+        int rowH = px(cardH) + 2 * px(PANEL_OUT + PANEL_PAD_Y);
+        LinearLayout.LayoutParams aLp = Ui.margins(this, -1, rowH, Ui.edgeX(this) - PANEL_IN, 0, Ui.edgeX(this) - PANEL_IN, 0);
         aLp.topMargin = -px(PANEL_OUT);
         rowsCol.addView(rowA, aLp);
 

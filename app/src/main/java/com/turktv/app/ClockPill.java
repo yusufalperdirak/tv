@@ -20,7 +20,7 @@ import java.util.Calendar;
  */
 final class ClockPill extends View {
 
-    static final int W = 178, H = 48;
+    static final int H = 48, SEP_X = 45, TEXT_X = 56;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -73,7 +73,9 @@ final class ClockPill extends View {
 
     @Override
     protected void onMeasure(int w, int h) {
-        setMeasuredDimension(Math.round(W * s), Math.round(H * s));
+        // genişlik saate göre: ikon · ayraç · saat birbirine yakın, sağ-sol boşluklar eşit
+        float tw = cutText.measureText("00:00");
+        setMeasuredDimension(Math.round(TEXT_X * s + tw + 17 * s), Math.round(H * s));
     }
 
     void start() {
@@ -102,7 +104,7 @@ final class ClockPill extends View {
 
         if (active) { // Bugün sayfası açık: ikon tam beyaz bir dairenin içinde
             fill.setAlpha(255);
-            cv.drawCircle(25 * s, 24 * s, 20 * s, fill);
+            cv.drawCircle(25 * s, 24 * s, 18.5f * s, fill);
         }
 
         // takvim ikonu (24x24 kutu, 13,12'de)
@@ -125,7 +127,7 @@ final class ClockPill extends View {
         // ayraç
         cut.setStyle(Paint.Style.FILL);
         cut.setAlpha(140);
-        cv.drawRoundRect(new RectF(50 * s, 13 * s, 52 * s, 35 * s), s, s, cut);
+        cv.drawRoundRect(new RectF(SEP_X * s, 14 * s, (SEP_X + 2) * s, 34 * s), s, s, cut);
         cut.setStyle(Paint.Style.STROKE);
         cut.setAlpha(255);
 
@@ -133,7 +135,8 @@ final class ClockPill extends View {
         Calendar cal = Calendar.getInstance();
         String hh = String.format(Actions.TR, "%02d", cal.get(Calendar.HOUR_OF_DAY));
         String mm = String.format(Actions.TR, "%02d", cal.get(Calendar.MINUTE));
-        float x = 66 * s, base = 33 * s;
+        Paint.FontMetrics fm = cutText.getFontMetrics();
+        float x = TEXT_X * s, base = h / 2f - (fm.ascent + fm.descent) / 2f; // dikeyde tam ortada
         cutText.setAlpha(255);
         cv.drawText(hh, x, base, cutText);
         x += cutText.measureText(hh);
