@@ -17,86 +17,29 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/** Ayarlar ekranı. */
+/**
+ * Ayarlar: az satır, büyük yazı, üç başlık altında. Her satırda başlık ve tek satırlık açıklama;
+ * sağda açık/kapalı anahtarı ya da o anki değer.
+ */
 public class SettingsActivity extends Activity {
 
     private interface Getter { boolean get(); }
     private interface Setter { void set(boolean v); }
 
     private static final class Row {
-        String title, sub, desc, note;
+        String title, sub;
         int icon;
         Getter toggleGet;  // açma/kapama satırı
         Setter toggleSet;
         Runnable action;   // işlem satırı
         TextView valueView, subView, titleView;
+        ImageView iconView;
         View track, knob;
         LinearLayout view;
     }
 
     private final List<Row> rows = new ArrayList<>();
-    private Row homeRow, editRow, todayRow;
-
-    private static String keyName(int code) {
-        if (code == 0) return "Atanmadı";
-        String n = android.view.KeyEvent.keyCodeToString(code).replace("KEYCODE_", "");
-        switch (n) {
-            case "PROG_RED": return "Kırmızı";
-            case "PROG_GREEN": return "Yeşil";
-            case "PROG_YELLOW": return "Sarı";
-            case "PROG_BLUE": return "Mavi";
-            case "MENU": return "Menü";
-            case "GUIDE": return "Rehber";
-            case "INFO": return "Bilgi";
-            case "ALL_APPS": return "Uygulamalar";
-            case "SETTINGS": return "Ayarlar";
-            case "BOOKMARK": return "Yer imi";
-            default: return n.replace('_', ' ');
-        }
-    }
-
-    /** Sonraki tuş basışını Bugün tuşu olarak kaydeder. */
-    private void learnTodayKey(Row row) {
-        final android.app.AlertDialog d = new android.app.AlertDialog.Builder(this)
-                .setTitle("Bugün tuşu")
-                .setMessage("Kumandada Bugün sayfasını açmasını istediğin tuşa şimdi bas.\n\nŞu an: " + keyName(Prefs.todayKey(this)))
-                .setNegativeButton("Vazgeç", null)
-                .setNeutralButton("Kaldır", (x, w) -> {
-                    Prefs.todayKey(this, 0);
-                    row.valueView.setText(keyName(0) + "  ›");
-                })
-                .create();
-        d.setOnKeyListener((di, code, ev) -> {
-            if (ev.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-            switch (code) {
-                case android.view.KeyEvent.KEYCODE_DPAD_UP:
-                case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
-                case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
-                case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
-                case android.view.KeyEvent.KEYCODE_DPAD_CENTER:
-                case android.view.KeyEvent.KEYCODE_ENTER:
-                case android.view.KeyEvent.KEYCODE_BACK:
-                    return false; // yön, OK ve Geri atanamaz: diyalog düğmeleri için kalır
-                case android.view.KeyEvent.KEYCODE_HOME:
-                case android.view.KeyEvent.KEYCODE_POWER:
-                case android.view.KeyEvent.KEYCODE_VOLUME_UP:
-                case android.view.KeyEvent.KEYCODE_VOLUME_DOWN:
-                case android.view.KeyEvent.KEYCODE_VOLUME_MUTE:
-                case android.view.KeyEvent.KEYCODE_CHANNEL_UP:
-                case android.view.KeyEvent.KEYCODE_CHANNEL_DOWN:
-                    android.widget.Toast.makeText(this, "Bu tuş atanamaz, başka bir tuş dene", android.widget.Toast.LENGTH_SHORT).show();
-                    return true;
-            }
-            Prefs.todayKey(this, code);
-            row.valueView.setText(keyName(code) + "  ›");
-            android.widget.Toast.makeText(this, keyName(code) + " tuşu Bugün sayfasını açacak", android.widget.Toast.LENGTH_LONG).show();
-            d.dismiss();
-            return true;
-        });
-        d.show();
-    }
-    private ImageView asideIcon;
-    private TextView asideTitle, asideDesc, asideNote;
+    private Row editRow;
 
     private int px(float v) {
         return Ui.px(this, v);
@@ -109,21 +52,14 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Ui.BG);
-        root.setPadding(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), px(Ui.edgeY(this)));
+        root.setPadding(px(Ui.edgeX(this)), px(Ui.edgeY(this)), px(Ui.edgeX(this)), 0);
 
         LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(Ui.text(this, "Ayarlar", 34, Ui.BOLD, Ui.TEXT));
+        header.setGravity(Gravity.BOTTOM);
+        header.addView(Ui.text(this, "Ayarlar", 40, Ui.BOLD, Ui.TEXT));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        header.addView(Ui.text(this, "DIRAK · sürüm " + BuildConfig.VERSION_NAME + " · Yusuf Alper Dırak", 14, Ui.REGULAR, Ui.MUTED));
+        header.addView(Ui.text(this, "DIRAK " + BuildConfig.VERSION_NAME, 17, Ui.REGULAR, Ui.MUTED));
         root.addView(header);
-
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.HORIZONTAL);
-        body.setClipChildren(false);
-        root.addView(body, Ui.margins(this, -1, 0, 0, 28, 0, 0));
-        ((LinearLayout.LayoutParams) body.getLayoutParams()).weight = 1f;
 
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
@@ -132,57 +68,16 @@ public class SettingsActivity extends Activity {
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         list.setClipChildren(false);
-        list.setPadding(px(6), px(4), px(6), px(24));
+        list.setPadding(0, px(8), 0, px(Ui.edgeY(this) + 40));
         scroll.addView(list);
-        body.addView(scroll, new LinearLayout.LayoutParams(0, -1, 1f));
+        root.addView(scroll, Ui.margins(this, -1, 0, 0, 20, 0, 0));
+        ((LinearLayout.LayoutParams) scroll.getLayoutParams()).weight = 1f;
 
-        LinearLayout aside = new LinearLayout(this);
-        aside.setOrientation(LinearLayout.VERTICAL);
-        aside.setPadding(px(28), px(28), px(28), px(28));
-        aside.setBackground(Ui.rounded(this, Ui.SURFACE, 20));
-        FrameLayout iconBox = new FrameLayout(this);
-        iconBox.setBackground(Ui.rounded(this, Ui.ACCENT, 14));
-        asideIcon = Ui.icon(this, R.drawable.ic_power, 26, Ui.WHITE);
-        iconBox.addView(asideIcon, new FrameLayout.LayoutParams(px(26), px(26), Gravity.CENTER));
-        aside.addView(iconBox, new LinearLayout.LayoutParams(px(52), px(52)));
-        asideTitle = Ui.text(this, "", 24, Ui.BOLD, Ui.TEXT);
-        asideTitle.setLineSpacing(px(4), 1f);
-        aside.addView(asideTitle, Ui.margins(this, -1, -2, 0, 16, 0, 0));
-        asideDesc = Ui.text(this, "", 15, Ui.REGULAR, Ui.SOFT);
-        asideDesc.setLineSpacing(px(6), 1f);
-        aside.addView(asideDesc, Ui.margins(this, -1, -2, 0, 14, 0, 0));
-        asideNote = Ui.text(this, "", 14, Ui.REGULAR, Ui.MUTED);
-        asideNote.setLineSpacing(px(5), 1f);
-        aside.addView(asideNote, Ui.margins(this, -1, -2, 0, 16, 0, 0));
-        LinearLayout.LayoutParams aLp = new LinearLayout.LayoutParams(px(360), -2);
-        aLp.setMargins(px(32), 0, 0, 0);
-        body.addView(aside, aLp);
-
-        // --- Satırlar
+        // ---- İzleme
+        section(list, "İzleme");
         Row r = new Row();
-        r.title = "TV açılınca otomatik başlat";
-        r.sub = "Televizyon açıldığında uygulama direkt açılır";
-        r.desc = "Televizyonu açtığında başka hiçbir şeye dokunmadan TV uygulaması açılır. "
-                + "\"Son izlenen kanalla aç\" da açıksa doğrudan son kanal oynamaya başlar.";
-        r.icon = R.drawable.ic_power;
-        r.toggleGet = () -> Prefs.autostart(this);
-        r.toggleSet = v -> {
-            Prefs.autostart(this, v);
-            if (v) {
-                WakeService.start(this);
-                if (!Actions.hasOverlay(this)) Actions.requestOverlay(this);
-            } else {
-                WakeService.stop(this);
-            }
-        };
-        r.note = "overlay";
-        addRow(list, r);
-
-        r = new Row();
-        r.title = "Son izlenen kanalla aç";
-        r.sub = "Açılışta ana ekran yerine doğrudan yayına geç";
-        r.desc = "Uygulama açıldığında ana ekranı atlayıp en son izlediğin kanalı tam ekran başlatır. "
-                + "Geri tuşuyla her zaman ana ekrana dönebilirsin.";
+        r.title = "Son kanalla başla";
+        r.sub = "Uygulama açılınca en son izlediğin kanal oynasın";
         r.icon = R.drawable.ic_play;
         r.toggleGet = () -> Prefs.openLast(this);
         r.toggleSet = v -> Prefs.openLast(this, v);
@@ -190,163 +85,77 @@ public class SettingsActivity extends Activity {
 
         r = new Row();
         r.title = "Önizlemede ses";
-        r.sub = "Ana ekrandaki küçük önizleme sesli oynasın";
-        r.desc = "Kapalıyken önizleme sessiz oynar; kanallar arasında gezinirken ses karışmaz.";
+        r.sub = "Ana ekrandaki kanal önizlemesi sesli oynasın";
         r.icon = R.drawable.ic_sound;
         r.toggleGet = () -> Prefs.previewSound(this);
         r.toggleSet = v -> Prefs.previewSound(this, v);
         addRow(list, r);
 
+        final Row night = new Row();
+        night.title = "Gece modu";
+        night.sub = "Ses en fazla %35, görüntü biraz kısık · her basışta değişir";
+        night.icon = R.drawable.ic_moon;
+        night.action = () -> {
+            // Kapalı → 22–07 → 23–07 → 00–08 → Kapalı
+            if (!Prefs.nightMode(this)) {
+                Prefs.nightMode(this, true);
+                Prefs.nightHours(this, 0);
+            } else if (Prefs.nightHours(this) < Prefs.NIGHT_HOURS.length - 1) {
+                Prefs.nightHours(this, Prefs.nightHours(this) + 1);
+            } else {
+                Prefs.nightMode(this, false);
+            }
+            night.valueView.setText(nightLabel());
+        };
+        addRow(list, night);
+        night.valueView.setText(nightLabel());
+
         r = new Row();
-        r.title = "Kapalı kanalları gizle";
-        r.sub = "O an yayınına ulaşılamayan kanallar listede görünmesin";
-        r.desc = "Uygulama her açılışta kanalların yayınlarına ulaşılabiliyor mu kontrol eder. "
-                + "Bu açıkken yalnızca çalışan kanallar gösterilir.";
-        r.icon = R.drawable.ic_list;
-        r.toggleGet = () -> Prefs.hideOffline(this);
-        r.toggleSet = v -> Prefs.hideOffline(this, v);
+        r.title = "Hâlâ izliyor musun?";
+        r.sub = "3 saat tuşa basılmazsa sorar, cevap yoksa yayını durdurur";
+        r.icon = R.drawable.ic_power;
+        r.toggleGet = () -> Prefs.stillWatching(this);
+        r.toggleSet = v -> Prefs.stillWatching(this, v);
         addRow(list, r);
 
-        final Row home = new Row();
-        home.title = "Ana ekran (launcher)";
-        home.sub = "Kumandadaki ana ekran tuşu bu uygulamayı açsın";
-        home.desc = "TV'nde ana ekranı değiştirme seçeneği olmadığı için uygulama, TV'nin kendi ana ekranı açıldığı anda "
-                + "kendini öne getirir. Bunun için iki yol var: Kullanım erişimi (çoğu TV'de çalışır) ya da Erişilebilirlik. "
-                + "Birini bir kez açman yeterli. Ekran içeriği okunmaz.";
-        home.icon = R.drawable.ic_home;
-        home.action = () -> HomeWatch.showSetup(this);
-        addRow(list, home);
-        homeRow = home;
-
+        // ---- Kanallar
+        section(list, "Kanallar");
         final Row edit = new Row();
         edit.title = "Kanalları düzenle";
-        edit.sub = "İzlemediğin kanalları gizle, sırayı değiştir";
-        edit.desc = "Kanal listesinde istemediğin kanalları gizleyebilir, kalanları istediğin sıraya koyabilirsin. "
-                + "Kanal numaraları yeni sıraya göre verilir.";
+        edit.sub = "Kanalları gizle ya da sırasını değiştir";
         edit.icon = R.drawable.ic_edit;
         edit.action = () -> startActivity(new android.content.Intent(this, EditChannelsActivity.class));
         addRow(list, edit);
         editRow = edit;
 
         r = new Row();
-        r.title = "Gece modu";
-        r.sub = "Gece saatlerinde ses sınırlanır, görüntü hafifçe kararır";
-        r.desc = "Belirlediğin saatler arasında ses en fazla %35'e çıkar ve görüntü biraz kısılır. "
-                + "Kontrol Merkezi'nden de açıp kapatabilirsin.";
-        r.icon = R.drawable.ic_moon;
-        r.toggleGet = () -> Prefs.nightMode(this);
-        r.toggleSet = v -> Prefs.nightMode(this, v);
-        addRow(list, r);
-
-        final Row nh = new Row();
-        nh.title = "Gece modu saatleri";
-        nh.sub = "Her basışta değişir";
-        nh.desc = "Gece modunun hangi saatler arasında çalışacağını seç.";
-        nh.icon = R.drawable.ic_w_moon;
-        nh.action = () -> {
-            Prefs.nightHours(this, (Prefs.nightHours(this) + 1) % Prefs.NIGHT_HOURS.length);
-            nh.valueView.setText(nightLabel());
-        };
-        addRow(list, nh);
-        nh.valueView.setText(nightLabel());
-
-        r = new Row();
-        r.title = "\"Hâlâ izliyor musun?\"";
-        r.sub = "3 saat tuşa basılmazsa sorar, cevap yoksa yayını durdurur";
-        r.desc = "Uyuya kalırsan yayın saatlerce boşuna açık kalmaz. Soru ekrana gelince herhangi bir tuşa basman yeterli; "
-                + "5 dakika cevap gelmezse yayın durur ve TV kendi ayarına göre ekranı kapatabilir.";
-        r.icon = R.drawable.ic_power;
-        r.toggleGet = () -> Prefs.stillWatching(this);
-        r.toggleSet = v -> Prefs.stillWatching(this, v);
-        addRow(list, r);
-
-        final Row today = new Row();
-        today.title = "Bugün tuşu";
-        today.sub = "Kumandadaki bir tuş Bugün sayfasını açsın";
-        today.desc = "Seçtiğin tuşa bastığında hava durumu, döviz kuru ve ezan vakitlerinin olduğu Bugün sayfası açılır; "
-                + "aynı tuşa tekrar basınca kapanır. Ana ekranda ve izlerken çalışır. Renkli tuşlar ya da kullanmadığın bir tuş idealdir.";
-        today.icon = R.drawable.ic_w_sun;
-        today.action = () -> learnTodayKey(today);
-        addRow(list, today);
-        todayRow = today;
-
-        r = new Row();
-        r.title = "Açılış sesi";
-        r.sub = "DIRAK açılışında cam tınısı";
-        r.desc = "Uygulama açılırken çalan kısa cam tınısı.";
-        r.icon = R.drawable.ic_sound;
-        r.toggleGet = () -> Prefs.splashSound(this);
-        r.toggleSet = v -> Prefs.splashSound(this, v);
-        addRow(list, r);
-
-        r = new Row();
-        r.title = "Döviz kuru";
-        r.sub = "Ana ekranda Euro/TL ve Dolar/TL";
-        r.desc = "Ana ekranın sağ üstünde, saatin yanında güncel kur gösterilir (Avrupa Merkez Bankası verisi, günde bir güncellenir).";
+        r.title = "Kapalı kanalları gizle";
+        r.sub = "O an açılmayan kanallar listede görünmesin";
         r.icon = R.drawable.ic_list;
-        r.toggleGet = () -> Prefs.showRates(this);
-        r.toggleSet = v -> Prefs.showRates(this, v);
-        addRow(list, r);
-
-        r = new Row();
-        r.title = "Ezan vakitleri";
-        r.sub = "Ana ekranda sıradaki vakit";
-        r.desc = "Bulunduğun şehre göre (Diyanet hesaplama yöntemi) sıradaki ezan vakti ana ekranda gösterilir. "
-                + "Şehir internet bağlantından otomatik bulunur.";
-        r.icon = R.drawable.ic_w_sun;
-        r.toggleGet = () -> Prefs.showPrayer(this);
-        r.toggleSet = v -> Prefs.showPrayer(this, v);
+        r.toggleGet = () -> Prefs.hideOffline(this);
+        r.toggleSet = v -> Prefs.hideOffline(this, v);
         addRow(list, r);
 
         final Row scan = new Row();
-        scan.title = "Kanal taraması";
+        scan.title = "Kanalları tara";
         scan.sub = scanSub();
-        scan.desc = "TV kullanılmazken (genelde gece) uygulama bütün kanalları sırayla dener. Açılmayanlar işaretlenir; "
-                + "listede aynı kanalın başka bir adresi varsa yedek olarak kaydedilir ve kanal açılmazsa kendiliğinden ona geçilir. "
-                + "Şimdi taramak için OK'e bas (birkaç dakika sürebilir).";
         scan.icon = R.drawable.ic_scan;
         scan.action = () -> {
             scan.valueView.setText("Taranıyor…");
             ScanJob.runNow(this, (broken, alt) -> {
                 if (isFinishing()) return;
-                scan.valueView.setText("Şimdi tara  ›");
+                scan.valueView.setText("Tara");
                 scan.subView.setText(scanSub());
                 Toast.makeText(this, broken == 0 ? "Bütün kanallar çalışıyor"
                         : broken + " kanal açılmıyor" + (alt > 0 ? ", " + alt + " tanesi için yedek bulundu" : ""), Toast.LENGTH_LONG).show();
             });
         };
         addRow(list, scan);
-        scan.valueView.setText("Şimdi tara  ›");
-
-        final Row up = new Row();
-        up.title = "Güncellemeleri denetle";
-        up.sub = "Sürüm " + BuildConfig.VERSION_NAME;
-        up.desc = "Yeni sürüm çıktığında uygulama ana ekranda haber verir; buradan da elle kontrol edebilirsin. "
-                + "Güncelleme indirilip kurulur, ayarların korunur.";
-        up.icon = R.drawable.ic_update;
-        up.action = () -> Updater.check(this, true);
-        addRow(list, up);
-        up.valueView.setText("Denetle  ›");
-
-        final Row edge = new Row();
-        edge.title = "Ekran kenar boşluğu";
-        edge.sub = "Menüler ekranın kenarından taşıyorsa artır";
-        edge.desc = "Bazı televizyonlar görüntünün kenarlarını biraz keser. Butonlar veya yazılar "
-                + "ekrana tam sığmıyorsa bunu \"Çok\" yap; boşluk fazlaysa \"Az\" yap. Her basışta değişir.";
-        edge.icon = R.drawable.ic_tv;
-        edge.action = () -> {
-            Prefs.edge(this, (Prefs.edge(this) + 1) % 3);
-            recreate();
-        };
-        addRow(list, edge);
-        edge.valueView.setText(new String[]{"Az", "Normal", "Çok"}[Prefs.edge(this)] + "  ›");
+        scan.valueView.setText("Tara");
 
         final Row update = new Row();
         update.title = "Kanal listesini güncelle";
         update.sub = listSub();
-        update.desc = RemoteList.enabled()
-                ? "Kanal listesi her açılışta internetten otomatik güncellenir. Şimdi güncellemek için OK'e bas."
-                : "Uzaktan güncelleme bu derlemede kapalı.";
         update.icon = R.drawable.ic_refresh;
         update.action = () -> {
             update.valueView.setText("Güncelleniyor…");
@@ -360,38 +169,49 @@ public class SettingsActivity extends Activity {
         addRow(list, update);
         update.valueView.setText(channelCount());
 
+        // ---- Uygulama
+        section(list, "Uygulama");
+        final Row up = new Row();
+        up.title = "Güncellemeleri denetle";
+        up.sub = "Şu anki sürüm " + BuildConfig.VERSION_NAME;
+        up.icon = R.drawable.ic_update;
+        up.action = () -> Updater.check(this, true);
+        addRow(list, up);
+        up.valueView.setText("Denetle");
+
         setContentView(root);
         rows.get(0).view.requestFocus();
-        showAside(rows.get(0));
     }
 
-    private String keyLabel() {
-        int k = Prefs.ctrlKey(this);
-        return (k == 0 ? "Menü / Uygulamalar" : android.view.KeyEvent.keyCodeToString(k).replace("KEYCODE_", "")) + "  ›";
+    private void section(LinearLayout list, String title) {
+        TextView t = Ui.text(this, title.toUpperCase(Actions.TR), 15, Ui.MEDIUM, Ui.MUTED);
+        t.setLetterSpacing(0.08f);
+        list.addView(t, Ui.margins(this, -2, -2, 8, list.getChildCount() == 0 ? 6 : 26, 0, 12));
     }
 
     private String nightLabel() {
+        if (!Prefs.nightMode(this)) return "Kapalı";
         int[] h = Prefs.NIGHT_HOURS[Prefs.nightHours(this)];
-        return String.format(Actions.TR, "%02d:00 – %02d:00  ›", h[0], h[1]);
+        return String.format(Actions.TR, "%02d:00 – %02d:00", h[0], h[1]);
     }
 
     private String scanSub() {
         long t = Prefs.scanAt(this);
-        if (t == 0) return "Henüz taranmadı · TV boştayken kendiliğinden taranır";
+        if (t == 0) return "Açılmayan kanalları bulur · TV boştayken kendiliğinden yapılır";
         int n = Prefs.broken(this).size();
-        return "Son tarama: " + new SimpleDateFormat("d MMMM HH:mm", Actions.TR).format(new Date(t))
+        return "Son tarama " + new SimpleDateFormat("d MMMM HH:mm", Actions.TR).format(new Date(t))
                 + " · " + (n == 0 ? "hepsi çalışıyor" : n + " kanal kapalı");
     }
 
     private String channelCount() {
-        return Channel.loadAll(this).size() + " kanal  ›";
+        return Channel.loadAll(this).size() + " kanal";
     }
 
     private String listSub() {
         long t = Prefs.listUpdated(this);
         if (!RemoteList.enabled()) return "Uzaktan güncelleme kapalı";
-        if (t == 0) return "Henüz güncellenmedi";
-        return "Son güncelleme: " + new SimpleDateFormat("d MMMM HH:mm", Actions.TR).format(new Date(t));
+        if (t == 0) return "Her açılışta kendiliğinden güncellenir";
+        return "Son güncelleme " + new SimpleDateFormat("d MMMM HH:mm", Actions.TR).format(new Date(t));
     }
 
     private void addRow(LinearLayout list, final Row r) {
@@ -400,16 +220,27 @@ public class SettingsActivity extends Activity {
         v.setGravity(Gravity.CENTER_VERTICAL);
         v.setFocusable(true);
         v.setClickable(true);
-        v.setPadding(px(22), px(14), px(22), px(14));
-        v.setMinimumHeight(px(72));
+        v.setPadding(px(24), px(16), px(28), px(16));
+        v.setMinimumHeight(px(92));
+
+        FrameLayout circle = new FrameLayout(this);
+        r.iconView = Ui.icon(this, r.icon, 26, Ui.TEXT);
+        circle.addView(r.iconView, new FrameLayout.LayoutParams(px(26), px(26), Gravity.CENTER));
+        circle.setTag("circle");
+        v.addView(circle, new LinearLayout.LayoutParams(px(52), px(52)));
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
-        r.titleView = Ui.text(this, r.title, 18, Ui.BOLD, Ui.TEXT);
+        r.titleView = Ui.text(this, r.title, 24, Ui.BOLD, Ui.TEXT);
         texts.addView(r.titleView);
-        r.subView = Ui.text(this, r.sub, 14, Ui.REGULAR, Ui.MUTED);
-        texts.addView(r.subView, Ui.margins(this, -2, -2, 0, 5, 0, 0));
-        v.addView(texts, new LinearLayout.LayoutParams(0, -2, 1f));
+        r.subView = Ui.text(this, r.sub, 17, Ui.REGULAR, Ui.SOFT);
+        r.subView.setSingleLine(true);
+        r.subView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        texts.addView(r.subView, Ui.margins(this, -1, -2, 0, 6, 0, 0));
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, -2, 1f);
+        tLp.leftMargin = px(20);
+        tLp.rightMargin = px(16);
+        v.addView(texts, tLp);
 
         if (r.toggleGet != null) {
             FrameLayout track = new FrameLayout(this);
@@ -418,8 +249,8 @@ public class SettingsActivity extends Activity {
             kd.setShape(GradientDrawable.OVAL);
             kd.setColor(Ui.WHITE);
             knob.setBackground(kd);
-            track.addView(knob, new FrameLayout.LayoutParams(px(24), px(24), Gravity.CENTER_VERTICAL));
-            v.addView(track, new LinearLayout.LayoutParams(px(52), px(30)));
+            track.addView(knob, new FrameLayout.LayoutParams(px(30), px(30), Gravity.CENTER_VERTICAL));
+            v.addView(track, new LinearLayout.LayoutParams(px(64), px(36)));
             r.track = track;
             r.knob = knob;
             v.setOnClickListener(x -> {
@@ -427,16 +258,13 @@ public class SettingsActivity extends Activity {
                 styleRow(r, true);
             });
         } else {
-            r.valueView = Ui.text(this, "", 15, Ui.BOLD, Ui.SOFT);
+            r.valueView = Ui.text(this, "", 20, Ui.MEDIUM, Ui.SOFT);
             v.addView(r.valueView);
             v.setOnClickListener(x -> r.action.run());
         }
 
         v.setLayoutParams(Ui.margins(this, -1, -2, 0, 0, 0, 10));
-        v.setOnFocusChangeListener((x, has) -> {
-            styleRow(r, has);
-            if (has) showAside(r);
-        });
+        v.setOnFocusChangeListener((x, has) -> styleRow(r, has));
         r.view = v;
         rows.add(r);
         list.addView(v);
@@ -444,14 +272,20 @@ public class SettingsActivity extends Activity {
     }
 
     private void styleRow(Row r, boolean focus) {
-        r.view.setBackground(Ui.rounded(this, focus ? Ui.TEXT : Ui.SURFACE, 16));
-        r.titleView.setTextColor(focus ? Ui.BG : Ui.TEXT);
-        r.subView.setTextColor(focus ? 0xFF4A5262 : Ui.MUTED);
-        if (r.valueView != null) r.valueView.setTextColor(focus ? Ui.BG : Ui.SOFT);
+        r.view.setBackground(Ui.rounded(this, focus ? 0xFFFFFFFF : Ui.SURFACE, 22));
+        r.titleView.setTextColor(focus ? 0xFF0B0D12 : Ui.TEXT);
+        r.subView.setTextColor(focus ? 0xFF3D4452 : Ui.SOFT);
+        r.iconView.setColorFilter(focus ? 0xFFFFFFFF : Ui.TEXT);
+        View circle = r.view.getChildAt(0);
+        GradientDrawable cd = new GradientDrawable();
+        cd.setShape(GradientDrawable.OVAL);
+        cd.setColor(focus ? Ui.ACCENT : 0x1FFFFFFF);
+        circle.setBackground(cd);
+        if (r.valueView != null) r.valueView.setTextColor(focus ? 0xFF0B0D12 : Ui.SOFT);
         if (r.toggleGet != null) {
             boolean on = r.toggleGet.get();
-            int trackColor = on ? Ui.ACCENT : (focus ? 0xFFC2C8D2 : 0xFF2E3542);
-            r.track.setBackground(Ui.rounded(this, trackColor, 15));
+            int trackColor = on ? 0xFF34C759 : (focus ? 0xFFC2C8D2 : 0xFF3A4150);
+            r.track.setBackground(Ui.rounded(this, trackColor, 18));
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) r.knob.getLayoutParams();
             lp.gravity = Gravity.CENTER_VERTICAL | (on ? Gravity.END : Gravity.START);
             lp.setMargins(px(3), 0, px(3), 0);
@@ -459,33 +293,13 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    private void showAside(Row r) {
-        asideIcon.setImageResource(r.icon);
-        asideTitle.setText(r.title);
-        asideDesc.setText(r.desc);
-        if ("overlay".equals(r.note)) {
-            asideNote.setText(Actions.hasOverlay(this)
-                    ? "Gerekli izin verilmiş, otomatik açılış hazır."
-                    : "Bazı televizyonlarda \"Diğer uygulamaların üzerinde göster\" izni gerekir. "
-                    + "Ayarı açtığında izin ekranı gelir; bir kere onaylaman yeterli.");
-            asideNote.setVisibility(View.VISIBLE);
-        } else {
-            asideNote.setVisibility(View.GONE);
-        }
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-        if (todayRow != null) todayRow.valueView.setText(keyName(Prefs.todayKey(this)) + "  ›");
-        if (homeRow != null) homeRow.valueView.setText(HomeWatch.active(this) ? "Etkin  ›" : "Etkin değil  ›");
         if (HomeWatch.hasUsage(this)) WakeService.start(this);
-        if (editRow != null) editRow.valueView.setText(Lineup.get(this).size() + " görünür · " + Prefs.hidden(this).size() + " gizli  ›");
+        if (editRow != null) editRow.valueView.setText(Lineup.get(this).size() + " kanal");
         View f = getCurrentFocus();
-        for (Row r : rows) {
-            styleRow(r, r.view == f);
-            if (r.view == f) showAside(r);
-        }
+        for (Row r : rows) styleRow(r, r.view == f);
     }
 
     @Override

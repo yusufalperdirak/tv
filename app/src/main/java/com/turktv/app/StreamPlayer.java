@@ -187,7 +187,8 @@ final class StreamPlayer {
                 .setEnableDecoderFallback(true); // donanım çözücü desteklemezse yazılıma geç
         DefaultLoadControl load = new DefaultLoadControl.Builder()
                 // hızlı başlat (1 sn tampon), kesintide 2.5 sn biriktir, en fazla 40 sn tut
-                .setBufferDurationsMs(15000, 40000, 1000, 2500)
+                // takılmasın: başlarken 1.5 sn, takılınca 4 sn biriktir (daha seyrek dolum), en fazla 50 sn tut
+                .setBufferDurationsMs(20000, 50000, 1500, 4000)
                 // son 2 dakikayı bellekte tut: geri sarma anında olsun
                 .setBackBuffer(120000, true)
                 .build();

@@ -69,7 +69,6 @@ public class TodayActivity extends Activity {
 
         clock = new ClockPill(this);
         clock.setFocusable(false);
-        clock.setActive(true);
         FrameLayout.LayoutParams cLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         cLp.setMargins(0, px(ey), px(ex), 0);
         root.addView(clock, cLp);
@@ -229,34 +228,40 @@ public class TodayActivity extends Activity {
             hi.addView(Ui.text(this, in, 22, Ui.BOLD, 0xFFC20812), Ui.margins(this, -2, -2, 0, 2, 0, 0));
             t.addView(hi, Ui.margins(this, -1, -2, 0, 24, 0, 14));
         }
-        // diğer vakitler: iki sütun, okunur boyutta
-        android.widget.GridLayout g = new android.widget.GridLayout(this);
-        g.setColumnCount(2);
+        // diğer vakitler: iki eşit sütun, her hücre kendi içinde ortalı
+        LinearLayout g = new LinearLayout(this);
+        g.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout row = null;
+        int col = 0;
         for (int i = 0; i < times.length; i++) {
             if (i == next) continue;
+            if (col % 2 == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                g.addView(row, Ui.margins(this, -1, -2, 0, col == 0 ? 0 : 8, 0, 0));
+            }
             LinearLayout cell = new LinearLayout(this);
             cell.setOrientation(LinearLayout.VERTICAL);
-            cell.setPadding(px(6), px(4), px(6), px(4));
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+            cell.setPadding(0, px(8), 0, px(8));
+            cell.setBackground(Ui.rounded(this, 0x14FFFFFF, 18));
             boolean past = next < 0 || i < next;
-            cell.addView(Ui.text(this, names[i], 18, Ui.BOLD, past ? 0xFF7E8796 : DIM));
-            cell.addView(Ui.text(this, times[i], 28, Ui.BOLD, past ? 0xFF7E8796 : Ui.TEXT));
-            android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
-                    android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED),
-                    android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f));
-            lp.width = 0;
-            g.addView(cell, lp);
+            TextView n = Ui.text(this, names[i], 18, Ui.BOLD, past ? 0xFF7E8796 : DIM);
+            n.setGravity(Gravity.CENTER);
+            cell.addView(n);
+            TextView tv = Ui.text(this, times[i], 28, Ui.BOLD, past ? 0xFF7E8796 : Ui.TEXT);
+            tv.setGravity(Gravity.CENTER);
+            cell.addView(tv, Ui.margins(this, -2, -2, 0, 4, 0, 0));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+            if (col % 2 == 0) lp.rightMargin = px(5); else lp.leftMargin = px(5);
+            row.addView(cell, lp);
+            col++;
         }
+        // tek kalan vakit tüm satırı kaplar, ortada durur
+        if (col % 2 == 1 && row != null && row.getChildCount() == 1)
+            ((LinearLayout.LayoutParams) row.getChildAt(0).getLayoutParams()).rightMargin = 0;
         t.addView(g, new LinearLayout.LayoutParams(-1, -2));
         return t;
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(android.view.KeyEvent e) {
-        if (Prefs.isTodayKey(this, e)) { // aynı tuş kapatır
-            if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) finish();
-            return true;
-        }
-        return super.dispatchKeyEvent(e);
     }
 
     @Override

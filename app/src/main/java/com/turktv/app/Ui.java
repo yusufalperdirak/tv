@@ -40,8 +40,9 @@ final class Ui {
     static Typeface THIN = Typeface.create("sans-serif-thin", Typeface.NORMAL);
 
     static void initFonts(Context c) {
-        BOLD = load(c, "fonts/Inter-SemiBold.otf", BOLD);
-        MEDIUM = load(c, "fonts/Inter-Medium.otf", MEDIUM);
+        // kalın yazı yok: "BOLD" başlıklar için Medium, "MEDIUM" normal metin ağırlığında
+        BOLD = load(c, "fonts/Inter-Medium.otf", BOLD);
+        MEDIUM = load(c, "fonts/Inter-Regular.otf", MEDIUM);
         REGULAR = load(c, "fonts/Inter-Regular.otf", REGULAR);
         THIN = load(c, "fonts/Inter-Thin.otf", THIN);
     }
@@ -59,13 +60,11 @@ final class Ui {
      * menüler bu boşluğun içinde kalır.
      */
     static float edgeX(Context c) {
-        int l = Prefs.edge(c);
-        return l == 0 ? 56 : l == 2 ? 120 : 88;
+        return 88; // sabit kenar boşluğu (ayar kaldırıldı)
     }
 
     static float edgeY(Context c) {
-        int l = Prefs.edge(c);
-        return l == 0 ? 26 : l == 2 ? 64 : 42;
+        return 42;
     }
 
     /** Tasarımdaki piksel değerini bu ekrana çevirir (tasarım 1280 px genişlik). */

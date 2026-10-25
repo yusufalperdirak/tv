@@ -20,15 +20,14 @@ import java.util.Calendar;
  */
 final class ClockPill extends View {
 
-    static final int W = 178, H = 48, SEP_X = 47, ICON_CX = 24;
+    static final int H = 48, PAD = 24;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint cutText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
-    private final Path icon = new Path();
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private boolean colonOn = true, running, active;
+    private boolean colonOn = true, running;
     private final float s;
 
     private final Runnable tick = new Runnable() {
@@ -60,21 +59,16 @@ final class ClockPill extends View {
         cutText.setLetterSpacing(0.02f);
         setFocusable(true);
         setClickable(true);
-        setContentDescription("Bugün");
+        setContentDescription("Saat · Bugün sayfasını açar");
         // odakta büyümez (kesilme olmasın): yalnızca hap tam beyaz olur
         setOnFocusChangeListener((v, has) -> invalidate());
     }
 
-    /** Bugün sayfası açıkken takvim dairesi dolu görünür. */
-    void setActive(boolean a) {
-        active = a;
-        invalidate();
-    }
-
     @Override
     protected void onMeasure(int w, int h) {
-        // genişlik saate göre: ikon · ayraç · saat birbirine yakın, sağ-sol boşluklar eşit
-        setMeasuredDimension(Math.round(W * s), Math.round(H * s));
+        // yalnızca saat: iki yanda eşit boşluk
+        float tw = cutText.measureText("00:00");
+        setMeasuredDimension(Math.round(tw + 2 * PAD * s), Math.round(H * s));
     }
 
     void start() {
@@ -101,44 +95,14 @@ final class ClockPill extends View {
         fill.setAlpha(isFocused() ? 255 : 209);
         cv.drawRoundRect(rect, h / 2, h / 2, fill);
 
-        if (active) { // Bugün sayfası açık: ikon tam beyaz bir dairenin içinde
-            fill.setAlpha(255);
-            cv.drawCircle(ICON_CX * s, 24 * s, 18.5f * s, fill);
-        }
-
-        // takvim ikonu (24x24 kutu, 13,12'de)
-        cv.save();
-        cv.translate((ICON_CX - 12) * s, 12 * s);
-        icon.reset();
-        RectF r = new RectF(2.5f * s, 4.5f * s, 21.5f * s, 20.5f * s);
-        icon.addRoundRect(r, 4 * s, 4 * s, Path.Direction.CW);
-        cut.setStyle(Paint.Style.STROKE);
-        cut.setAlpha(255);
-        cv.drawPath(icon, cut);
-        cv.drawLine(2.5f * s, 10 * s, 21.5f * s, 10 * s, cut);
-        cv.drawLine(8 * s, 2.5f * s, 8 * s, 6.5f * s, cut);
-        cv.drawLine(16 * s, 2.5f * s, 16 * s, 6.5f * s, cut);
-        cut.setStyle(Paint.Style.FILL);
-        cv.drawCircle(12 * s, 15.2f * s, 1.6f * s, cut);
-        cut.setStyle(Paint.Style.STROKE);
-        cv.restore();
-
-        // ayraç
-        cut.setStyle(Paint.Style.FILL);
-        cut.setAlpha(140);
-        cv.drawRoundRect(new RectF(SEP_X * s, 14 * s, (SEP_X + 2) * s, 34 * s), s, s, cut);
-        cut.setStyle(Paint.Style.STROKE);
-        cut.setAlpha(255);
-
         // saat
         Calendar cal = Calendar.getInstance();
         String hh = String.format(Actions.TR, "%02d", cal.get(Calendar.HOUR_OF_DAY));
         String mm = String.format(Actions.TR, "%02d", cal.get(Calendar.MINUTE));
         Paint.FontMetrics fm = cutText.getFontMetrics();
-        // saat, çizgiden sonraki alanın tam ortasında (çizgiye ve sağ kenara eşit uzaklıkta)
+        // saat hapın tam ortasında
         float tw = cutText.measureText(hh + ":" + mm);
-        float areaL = (SEP_X + 2) * s, areaR = w;
-        float x = areaL + (areaR - areaL - tw) / 2f, base = h / 2f - (fm.ascent + fm.descent) / 2f; // dikeyde tam ortada
+        float x = (w - tw) / 2f, base = h / 2f - (fm.ascent + fm.descent) / 2f; // dikeyde tam ortada
         cutText.setAlpha(255);
         cv.drawText(hh, x, base, cutText);
         x += cutText.measureText(hh);

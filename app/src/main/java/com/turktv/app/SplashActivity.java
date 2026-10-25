@@ -80,7 +80,6 @@ public class SplashActivity extends Activity {
         } catch (Exception ignored) {
         }
 
-        if (Prefs.splashSound(this)) Chime.play(650);
 
         PathInterpolator ease = new PathInterpolator(0.22f, 0.7f, 0.2f, 1f);
         word.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(IN_MS).setInterpolator(ease).start();

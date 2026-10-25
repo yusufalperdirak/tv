@@ -125,16 +125,6 @@ final class Prefs {
     static boolean splashSound(Context c) { return p(c).getBoolean("splashSound", true); }
     static void splashSound(Context c, boolean v) { p(c).edit().putBoolean("splashSound", v).apply(); }
 
-    /** Bugün sayfasını açan kumanda tuşu (0: atanmadı). */
-    static int todayKey(Context c) { return p(c).getInt("todayKey", 0); }
-    static void todayKey(Context c, int v) { p(c).edit().putInt("todayKey", v).apply(); }
-
-    /** Bu tuş Bugün tuşu mu (yalnızca basış anı). */
-    static boolean isTodayKey(Context c, android.view.KeyEvent e) {
-        int k = todayKey(c);
-        return k != 0 && e.getKeyCode() == k;
-    }
-
     static boolean askedHome(Context c) { return p(c).getBoolean("askedHome2", false); }
     static void askedHome(Context c, boolean v) { p(c).edit().putBoolean("askedHome2", v).apply(); }
 

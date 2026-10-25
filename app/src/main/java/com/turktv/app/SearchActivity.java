@@ -55,13 +55,7 @@ public class SearchActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        FrameLayout badge = new FrameLayout(this);
-        badge.setBackground(Ui.rounded(this, Ui.ACCENT, 8));
-        ImageView mark = new ImageView(this);
-        mark.setImageResource(R.drawable.ic_tv);
-        badge.addView(mark, new FrameLayout.LayoutParams(px(26), px(26), Gravity.CENTER));
-        header.addView(badge, new LinearLayout.LayoutParams(px(32), px(32)));
-        header.addView(Ui.text(this, "Kanal ara", 22, Ui.BOLD, Ui.TEXT), Ui.margins(this, -2, -2, 12, 0, 0, 0));
+        header.addView(Ui.text(this, "Kanal ara", 40, Ui.BOLD, Ui.TEXT));
         root.addView(header);
 
         // Arama kutusu + mikrofon
@@ -72,45 +66,42 @@ public class SearchActivity extends Activity {
         LinearLayout field = new LinearLayout(this);
         field.setOrientation(LinearLayout.HORIZONTAL);
         field.setGravity(Gravity.CENTER_VERTICAL);
-        field.setPadding(px(24), 0, px(24), 0);
-        field.setBackground(Ui.rounded(this, 0xFF1A1F29, 32));
-        field.addView(Ui.icon(this, R.drawable.ic_search, 22, Ui.MUTED));
+        field.setPadding(px(28), 0, px(28), 0);
+        field.addView(Ui.icon(this, R.drawable.ic_search, 30, Ui.SOFT));
         input = new EditText(this);
         input.setBackground(null);
         input.setTextColor(Ui.TEXT);
-        input.setHintTextColor(0xFF6B7586);
-        input.setHint("Kanal adı veya numarası");
-        input.setTypeface(Ui.BOLD);
-        input.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(24));
+        input.setHintTextColor(0xFF8B95A7);
+        input.setHint("Kanal adını yaz");
+        input.setTypeface(Ui.REGULAR);
+        input.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(30));
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         field.addView(input, Ui.margins(this, 0, -2, 14, 0, 0, 0));
         ((LinearLayout.LayoutParams) input.getLayoutParams()).weight = 1f;
-        final android.graphics.drawable.GradientDrawable fieldBg = Ui.rounded(this, 0xFF1A1F29, 32);
+        final android.graphics.drawable.GradientDrawable fieldBg = Ui.rounded(this, 0xFF1C212B, 40);
         field.setBackground(fieldBg);
         input.setOnFocusChangeListener((v, has) -> fieldBg.setStroke(has ? px(3) : 0, Ui.WHITE));
-        bar.addView(field, new LinearLayout.LayoutParams(px(660), px(64)));
+        bar.addView(field, new LinearLayout.LayoutParams(0, px(80), 1f));
 
-        LinearLayout mic = Ui.button(this, R.drawable.ic_mic, null, 64, Ui.SURFACE2);
+        // sesle arama: büyük, yazılı düğme
+        LinearLayout mic = Ui.button(this, R.drawable.ic_mic, "Sesle ara", 80, Ui.SURFACE2);
         mic.setOnClickListener(v -> startVoice());
-        ((LinearLayout.LayoutParams) mic.getLayoutParams()).setMargins(px(16), 0, 0, 0);
+        ((LinearLayout.LayoutParams) mic.getLayoutParams()).setMargins(px(18), 0, 0, 0);
         bar.addView(mic);
-        TextView micHint = Ui.text(this, "Mikrofona bas ve kanal adını söyle", 14, Ui.REGULAR, Ui.MUTED);
-        micHint.setMaxWidth(px(240));
-        bar.addView(micHint, Ui.margins(this, -2, -2, 18, 0, 0, 0));
-        root.addView(bar, Ui.margins(this, -1, -2, 0, 30, 0, 0));
+        root.addView(bar, Ui.margins(this, -1, -2, 0, 28, 0, 0));
 
-        resultTitle = Ui.text(this, "", 20, Ui.MEDIUM, Ui.TEXT);
-        root.addView(resultTitle, Ui.margins(this, -1, -2, 0, 30, 0, 14));
+        resultTitle = Ui.text(this, "", 22, Ui.MEDIUM, Ui.SOFT);
+        root.addView(resultTitle, Ui.margins(this, -1, -2, 4, 30, 0, 16));
 
         ScrollView sc = new ScrollView(this);
         sc.setVerticalScrollBarEnabled(false);
         sc.setClipToPadding(false);
         grid = new GridLayout(this);
-        grid.setColumnCount(6);
+        grid.setColumnCount(5);
         grid.setClipChildren(false);
-        grid.setPadding(px(4), px(8), px(4), px(60));
+        grid.setPadding(px(4), px(14), px(4), px(60));
         sc.addView(grid);
         root.addView(sc, new LinearLayout.LayoutParams(-1, 0, 1f));
 
@@ -143,18 +134,20 @@ public class SearchActivity extends Activity {
                 if (hit) res.add(c);
             }
         }
-        resultTitle.setText(q.trim().isEmpty() ? "Yazmaya başla"
-                : res.isEmpty() ? "Sonuç yok" : res.size() + " kanal bulundu");
-        int gap = px(18);
-        int w = (px(1280 - 2 * Ui.edgeX(this) - 8) - 5 * gap) / 6;
+        if (q.trim().isEmpty()) res.addAll(channels); // boşken bütün kanallar: yazdıkça daralır
+        resultTitle.setText(q.trim().isEmpty() ? "Bütün kanallar · yazdıkça daralır"
+                : res.isEmpty() ? "\"" + q.trim() + "\" bulunamadı" : res.size() + " kanal bulundu");
+        int gap = px(24);
+        int w = (px(1280 - 2 * Ui.edgeX(this) - 8) - 4 * gap) / 5;
+        int h = Math.round(w * 113f / 200f);
         int col = 0;
         for (Channel c : res) {
-            View card = Cards.make(this, c, 180, 104, true, null);
+            View card = Cards.make(this, c, 200, 113, true, null);
             card.setOnClickListener(v -> open(c));
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
             lp.width = w;
-            lp.height = px(104);
-            lp.setMargins(0, 0, (col % 6 == 5) ? 0 : gap, gap);
+            lp.height = h;
+            lp.setMargins(0, 0, (col % 5 == 4) ? 0 : gap, gap);
             grid.addView(card, lp);
             col++;
         }

@@ -106,8 +106,8 @@ public class BrowserActivity extends Activity {
         d.setColor(GLASS);
         b.setBackground(d);
         b.setContentDescription(desc);
-        ImageView iv = Ui.icon(this, icon, 20, INK);
-        b.addView(iv, new FrameLayout.LayoutParams(px(20), px(20), Gravity.CENTER));
+        ImageView iv = Ui.icon(this, icon, 26, INK);
+        b.addView(iv, new FrameLayout.LayoutParams(px(26), px(26), Gravity.CENTER));
         b.setOnClickListener(v -> action.run());
         targets.add(b);
         return b;
@@ -121,7 +121,7 @@ public class BrowserActivity extends Activity {
         root.setBackgroundColor(0xFF000000);
         root.setClipChildren(false);
         int sx = px(Ui.edgeX(this) * 0.6f), top = px(Ui.edgeY(this) * 0.55f), bottom = px(Ui.edgeY(this) * 0.5f);
-        int barH = px(48);
+        int barH = px(62); // uzaktan rahat görünen büyük çubuk
 
         // ---- üst çubuk: Safari gibi; ortada adres hapı, iki yanda cam düğmeler
         bar = new LinearLayout(this);
@@ -134,20 +134,20 @@ public class BrowserActivity extends Activity {
         bar.addView(fwd, gap(barH, barH, 10));
 
         addrBox = new FrameLayout(this);
-        addrBox.setBackground(Ui.rounded(this, GLASS, 24));
+        addrBox.setBackground(Ui.rounded(this, GLASS, 31));
         addrBox.setClipToOutline(true);
         LinearLayout addrRow = new LinearLayout(this);
         addrRow.setGravity(Gravity.CENTER);
         addrRow.setPadding(px(20), 0, px(20), 0);
-        lockIcon = Ui.icon(this, R.drawable.ic_lock, 14, 0xFF5A6272);
-        addrRow.addView(lockIcon, new LinearLayout.LayoutParams(px(14), px(14)));
+        lockIcon = Ui.icon(this, R.drawable.ic_lock, 18, 0xFF5A6272);
+        addrRow.addView(lockIcon, new LinearLayout.LayoutParams(px(18), px(18)));
         address = new EditText(this);
         address.setSingleLine(true);
         address.setHint("Ara veya adres yaz");
         address.setHintTextColor(0xFF5A6272);
         address.setTextColor(INK);
         address.setTypeface(Ui.MEDIUM);
-        address.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(17));
+        address.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(23));
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
         address.setSelectAllOnFocus(true);
         address.setBackground(null);
@@ -161,7 +161,7 @@ public class BrowserActivity extends Activity {
             String u = web.getUrl();
             address.setText(has ? (u != null ? u : "") : pretty(u));
             if (has) address.selectAll();
-            android.graphics.drawable.GradientDrawable d = Ui.rounded(this, has ? 0xFFFFFFFF : GLASS, 24);
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(this, has ? 0xFFFFFFFF : GLASS, 31);
             if (has) d.setStroke(px(2), 0xFF4DA3FF);
             addrBox.setBackground(d);
             if (has) {
@@ -191,17 +191,17 @@ public class BrowserActivity extends Activity {
         FrameLayout home = roundButton(R.drawable.ic_home, "Google", () -> web.loadUrl(HOME));
         bar.addView(home, gap(barH, barH, 10));
 
-        blockedText = Ui.text(this, "0", 15, Ui.BOLD, 0xFF1E7A4A);
+        blockedText = Ui.text(this, "0", 20, Ui.BOLD, 0xFF1E7A4A);
         blockedText.setGravity(Gravity.CENTER);
         blockedText.setCompoundDrawablePadding(px(6));
         android.graphics.drawable.Drawable sh = getDrawable(R.drawable.ic_shield);
         if (sh != null) {
             sh.setTint(0xFF1E7A4A);
-            sh.setBounds(0, 0, px(18), px(18));
+            sh.setBounds(0, 0, px(22), px(22));
             blockedText.setCompoundDrawables(sh, null, null, null);
         }
         blockedText.setPadding(px(14), 0, px(16), 0);
-        blockedText.setBackground(Ui.rounded(this, GLASS, 24));
+        blockedText.setBackground(Ui.rounded(this, GLASS, 31));
         blockedText.setContentDescription("Engellenen reklam");
         LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(-2, barH);
         bLp.leftMargin = px(10);
@@ -220,7 +220,7 @@ public class BrowserActivity extends Activity {
         web = new WebView(this);
         page.addView(web, new FrameLayout.LayoutParams(-1, -1));
         FrameLayout.LayoutParams pLp = new FrameLayout.LayoutParams(-1, -1);
-        pLp.setMargins(sx, top + barH + px(14), sx, bottom);
+        pLp.setMargins(sx, top + barH + px(16), sx, bottom);
         root.addView(page, pLp);
 
         // ---- iPad imleci: yarı saydam gri daire
@@ -232,11 +232,11 @@ public class BrowserActivity extends Activity {
         cursor.setBackground(cd);
         cursor.setElevation(px(6));
         cursor.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
-        root.addView(cursor, new FrameLayout.LayoutParams(px(24), px(24)));
+        root.addView(cursor, new FrameLayout.LayoutParams(px(34), px(34))); // uzaktan görünen imleç
 
         // ---- kısa ipucu (birkaç saniye görünür)
-        hintPill = Ui.text(this, "OK: tıkla   ·   OK basılı: kaydırma   ·   Yukarı: üst çubuk (◀▶ geçiş, ▼ geri)", 14, Ui.MEDIUM, Ui.TEXT);
-        hintPill.setPadding(px(20), px(10), px(20), px(10));
+        hintPill = Ui.text(this, "OK: tıkla   ·   OK basılı: kaydır   ·   Yukarı: üst çubuk", 19, Ui.MEDIUM, Ui.TEXT);
+        hintPill.setPadding(px(26), px(14), px(26), px(14));
         hintPill.setBackground(Ui.rounded(this, 0xCC1C1F26, 22));
         FrameLayout.LayoutParams hLp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         hLp.bottomMargin = bottom + px(20);
@@ -254,6 +254,7 @@ public class BrowserActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(false);
+        s.setTextZoom(130); // sayfa yazıları uzaktan okunur büyüklükte
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         downloads = new Downloads(this);
@@ -433,7 +434,7 @@ public class BrowserActivity extends Activity {
     }
 
     private void placeCursor() {
-        int half = px(12);
+        int half = px(17);
         cursor.setTranslationX(cx - half);
         cursor.setTranslationY(cy - half);
         if (inBarZone()) {
@@ -456,7 +457,7 @@ public class BrowserActivity extends Activity {
         root.getLocationInWindow(r);
         cx = o[0] - r[0] + t.getWidth() / 2f;
         cy = o[1] - r[1] + t.getHeight() / 2f;
-        int half = px(12);
+        int half = px(17);
         cursor.setTranslationX(cx - half);
         cursor.setTranslationY(cy - half);
         setHover(t);

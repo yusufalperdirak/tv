@@ -33,6 +33,8 @@ public class Channel {
     public final String referer;  // null olabilir
     public final String tvgId;    // program rehberi kimliği (boş olabilir)
     public final String youtube;  // varsa önce bu resmi YouTube canlı yayını denenir (ör. "@atv"), yoksa boş
+    public final String[] alts;   // yedek yayın adresleri (tvg-alt="a|b"); ana adres açılmazsa sırayla denenir
+    public final String ytAlt;    // son çare: kanalın resmi YouTube canlı yayını (tvg-ytalt="@kanal"), yoksa boş
     public final int color;
 
     /** Listenin başındaki program rehberi (XMLTV) adresi, yoksa boş. */
@@ -40,6 +42,13 @@ public class Channel {
 
     private Channel(int index, String name, String category, String url, String logo, String ua, String referer,
                     String tvgId, String youtube) {
+        this(index, name, category, url, logo, ua, referer, tvgId, youtube, new String[0], "");
+    }
+
+    private Channel(int index, String name, String category, String url, String logo, String ua, String referer,
+                    String tvgId, String youtube, String[] alts, String ytAlt) {
+        this.alts = alts == null ? new String[0] : alts;
+        this.ytAlt = ytAlt == null ? "" : ytAlt;
         this.index = index;
         this.number = index + 1;
         this.name = name;
@@ -61,12 +70,12 @@ public class Channel {
 
     /** Aynı kanal, başka bir sırayla (kullanıcının düzenlediği dizilim için). */
     Channel at(int newIndex) {
-        return new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube);
+        return new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube, alts, ytAlt);
     }
 
     /** Aynı kanal, yedek yayın adresiyle. */
     Channel withUrl(String newUrl) {
-        return new Channel(index, name, category, newUrl, logo, ua, referer, tvgId, youtube);
+        return new Channel(index, name, category, newUrl, logo, ua, referer, tvgId, youtube, alts, ytAlt);
     }
 
     static final String LOCAL_FILE = "channels.m3u";
@@ -157,7 +166,7 @@ public class Channel {
 
     static List<Channel> parse(String m3u) throws Exception {
         final class Raw {
-            String name, group, logo, url, ua, ref, id, yt;
+            String name, group, logo, url, ua, ref, id, yt, alt, ytAlt;
             int order;
         }
         List<Raw> raws = new ArrayList<>();
@@ -183,6 +192,8 @@ public class Channel {
                 cur.logo = "";
                 cur.id = "";
                 cur.yt = "";
+                cur.alt = "";
+                cur.ytAlt = "";
                 Matcher m = ATTR.matcher(comma >= 0 ? line.substring(0, comma) : line);
                 while (m.find()) {
                     String k = m.group(1).toLowerCase(Actions.TR);
@@ -190,6 +201,8 @@ public class Channel {
                     else if (k.equals("tvg-logo")) cur.logo = m.group(2).trim();
                     else if (k.equals("tvg-id")) cur.id = m.group(2).trim();
                     else if (k.equals("tvg-youtube")) cur.yt = m.group(2).trim();
+                    else if (k.equals("tvg-alt")) cur.alt = m.group(2).trim();
+                    else if (k.equals("tvg-ytalt")) cur.ytAlt = m.group(2).trim();
                     else if (k.equals("tvg-name") && cur.name.isEmpty()) cur.name = m.group(2);
                 }
             } else if (line.startsWith("#EXTVLCOPT:") && cur != null) {
@@ -212,7 +225,8 @@ public class Channel {
         });
         List<Channel> list = new ArrayList<>();
         for (Raw x : raws) {
-            list.add(new Channel(list.size(), x.name, category(x.group), x.url, x.logo, x.ua, x.ref, x.id, x.yt));
+            String[] alts = x.alt.isEmpty() ? new String[0] : x.alt.split("\\|");
+            list.add(new Channel(list.size(), x.name, category(x.group), x.url, x.logo, x.ua, x.ref, x.id, x.yt, alts, x.ytAlt));
         }
         return list;
     }

@@ -36,9 +36,9 @@ public class PlayerActivity extends Activity {
 
     public static final String EXTRA_INDEX = "index";
 
-    private static final long STALL_MS = 20000;   // bu kadar süre görüntü gelmezse yeniden bağlan
+    private static final long STALL_MS = 12000;   // bu kadar süre görüntü gelmezse yeniden bağlan
     private static final long RECHECK_MS = 60000; // açılamayan yayını bu aralıkla tekrar dene
-    private static final int MAX_RETRIES = 3;
+    private static final int MAX_RETRIES = 2; // aynı adreste bu kadar denemeden sonra sıradaki kaynağa geç
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private List<Channel> channels;
@@ -88,6 +88,12 @@ public class PlayerActivity extends Activity {
     private long askSince;
     private View nightDim;
     private boolean altTried;
+    // kaynak sırası: listedeki adresler, sonra kanalın resmi YouTube yayını (ytAlt)
+    private java.util.List<String> srcList;
+    private int srcIdx;
+    private boolean ytAltMode, ytAltTried;
+    private final java.util.ArrayDeque<Long> rebuffers = new java.util.ArrayDeque<>();
+    private boolean hadPlayed;
     private boolean warmed;
     private static final long STILL_WATCHING_MS = 3 * 3600_000L, ASK_MS = 5 * 60_000L;
     private TextView liveBadge;   // "● CANLI" ya da "1:20 geride"
@@ -465,7 +471,7 @@ public class PlayerActivity extends Activity {
             });
         }
         progRow.setVisibility(View.GONE);
-        panel.addView(progRow, Ui.margins(this, -1, -2, 0, 12, 0, 0));
+        panel.addView(progRow, Ui.margins(this, -1, -2, 0, 30, 0, 0)); // logo şeridiyle arasında rahat boşluk
     }
 
     private static boolean isInside(View v, View parent) {
@@ -545,7 +551,6 @@ public class PlayerActivity extends Activity {
         circle.addView(bubbleNum, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
         col.addView(circle, new LinearLayout.LayoutParams(px(120), px(120)));
         bubbleLabel = Ui.text(this, "", 15, Ui.BOLD, Ui.TEXT);
-        bubbleLabel.setShadowLayer(px(6), 0, 0, 0x99000000);
         col.addView(bubbleLabel, Ui.margins(this, -2, -2, 0, 12, 0, 0));
         seekBubble.addView(col);
         seekBubble.setVisibility(View.GONE);
@@ -689,6 +694,9 @@ public class PlayerActivity extends Activity {
         altTried = false;
         ytBehindSec = 0;
         ytFailed = false;
+        srcList = null;
+        ytAltMode = false;
+        ytAltTried = false;
         playChannel(i, false);
     }
 
@@ -696,6 +704,9 @@ public class PlayerActivity extends Activity {
         Toast.makeText(this, cur().name + " yenileniyor", Toast.LENGTH_SHORT).show();
         retries = 0;
         ytFailed = false;
+        srcList = null;
+        ytAltMode = false;
+        ytAltTried = false;
         playChannel(index, true);
     }
 
@@ -710,23 +721,30 @@ public class PlayerActivity extends Activity {
         setState(-1);
         final Channel c = cur();
         final int t = ++ytToken;
-        if (!c.youtube.isEmpty() && !ytFailed) {
+        hadPlayed = false;
+        rebuffers.clear();
+        if (srcList == null) {
+            srcList = Sources.of(this, c);
+            srcIdx = 0;
+        }
+        final String handle = !c.youtube.isEmpty() && !ytFailed ? c.youtube : (ytAltMode ? c.ytAlt : "");
+        if (!handle.isEmpty()) {
             // Önce kanalın resmi YouTube canlı yayını; yoksa listedeki link
             usingYt = true;
             stream.stop();
             yt.web.setVisibility(View.VISIBLE);
-            final String mem = force ? null : YouTubeLive.remembered(c.youtube);
+            final String mem = force ? null : YouTubeLive.remembered(handle);
             ytFromMemory = mem != null;
             if (mem != null) {
                 // hatırlanan yayınla hemen başla, arka planda güncel mi diye bak
                 yt.play(mem, false);
-                YouTubeLive.find(c.youtube, true, id -> {
+                YouTubeLive.find(handle, true, id -> {
                     if (t != ytToken || stopped || id == null || id.equals(mem) || state == 1) return;
                     ytFromMemory = false;
                     yt.play(id, false);
                 });
             } else {
-                YouTubeLive.find(c.youtube, force, id -> {
+                YouTubeLive.find(handle, force, id -> {
                     if (t != ytToken || stopped) return;
                     if (id == null) ytFallback();
                     else yt.play(id, false);
@@ -736,7 +754,7 @@ public class PlayerActivity extends Activity {
             usingYt = false;
             yt.stop();
             yt.web.setVisibility(View.GONE);
-            stream.play(c, false, force);
+            stream.play(c.withUrl(srcList.get(Math.min(srcIdx, srcList.size() - 1))), false, force);
         }
         updateOsd();
         showOsd();
@@ -745,10 +763,21 @@ public class PlayerActivity extends Activity {
 
     /** YouTube'da yayın yok / açılmadı: aynı kanalı listedeki linkten aç. */
     private void ytFallback() {
+        if (ytAltMode) { // son çare olan YouTube yayını da olmadı
+            ytAltMode = false;
+            ytAltTried = true;
+            ytToken++;
+            usingYt = false;
+            yt.stop();
+            yt.web.setVisibility(View.GONE);
+            Health.report(cur(), false);
+            showError();
+            return;
+        }
         if (ytFromMemory) {
             // hatırlanan yayın artık geçerli değil: bir kez de güncelini arayıp dene
             ytFromMemory = false;
-            YouTubeLive.forget(cur().youtube);
+            YouTubeLive.forget(ytAltMode ? cur().ytAlt : cur().youtube);
             ytToken++;
             yt.stop();
             playChannel(index, true);
@@ -783,7 +812,9 @@ public class PlayerActivity extends Activity {
         if (s == 1) {
             userPaused = false;
             retries = 0;
+            hadPlayed = true;
             Health.report(cur(), true);
+            if (!usingYt && srcList != null) Sources.good(this, cur(), srcList.get(Math.min(srcIdx, srcList.size() - 1)));
             if (!warmed) {
                 warmed = true;
                 // anında kanal geçişi: üst ve alt kanalın bağlantısını önceden ısıt
@@ -796,6 +827,12 @@ public class PlayerActivity extends Activity {
         } else if (s == 0) {
             reconnect();
             return;
+        } else if (s == 3 && hadPlayed && !usingYt) {
+            // sık takılma: aynı adreste 60 sn içinde 3 kez dolum olduysa daha iyi kaynağa geç
+            long now = System.currentTimeMillis();
+            rebuffers.addLast(now);
+            while (!rebuffers.isEmpty() && now - rebuffers.peekFirst() > 60000) rebuffers.pollFirst();
+            if (rebuffers.size() >= 3 && nextSource(true)) return;
         }
         updateLoading();
         if (btnPause != null) Ui.setButtonIcon(btnPause, s == 2 ? R.drawable.ic_play : R.drawable.ic_pause);
@@ -809,23 +846,45 @@ public class PlayerActivity extends Activity {
             return;
         }
         retries++;
-        if (retries > MAX_RETRIES) {
-            String alt = altTried ? null : Prefs.altUrl(this, cur().url);
-            if (alt != null) {
-                altTried = true;
-                retries = 0;
-                Toast.makeText(this, cur().name + ": yedek yayına geçildi", Toast.LENGTH_SHORT).show();
-                hideError();
-                setState(-1);
-                stream.play(cur().withUrl(alt), false, true);
-                updateLoading();
-                return;
-            }
+        // hiç açılmayan adreste vakit kaybetme: bir kez tekrar dene, olmazsa sıradaki kaynak
+        if (retries > (hadPlayed ? MAX_RETRIES : 1)) {
+            if (nextSource(false)) return;
             Health.report(cur(), false);
             showError();
             return;
         }
         playChannel(index, true);
+    }
+
+    /**
+     * Sıradaki kaynağa geçer: listedeki bir sonraki adres, o da yoksa kanalın resmi YouTube yayını.
+     * Geçilecek kaynak kalmadıysa false döner.
+     */
+    private boolean nextSource(boolean stutter) {
+        Channel c = cur();
+        if (srcList == null) srcList = Sources.of(this, c);
+        retries = 0;
+        if (srcIdx + 1 < srcList.size()) {
+            srcIdx++;
+            Toast.makeText(this, c.name + (stutter ? ": takılma var, başka kaynağa geçildi" : ": başka kaynaktan açılıyor"),
+                    Toast.LENGTH_SHORT).show();
+            hideError();
+            playChannel(index, true);
+            return true;
+        }
+        if (!c.ytAlt.isEmpty() && !ytAltTried && !ytAltMode) {
+            ytAltMode = true;
+            ytFailed = true; // birincil YouTube (varsa) zaten denendi
+            Toast.makeText(this, c.name + ": resmi canlı yayından açılıyor", Toast.LENGTH_SHORT).show();
+            hideError();
+            playChannel(index, true);
+            return true;
+        }
+        if (stutter) return false;
+        // hepsi denendi: bir sonraki denemede baştan başla
+        srcIdx = 0;
+        ytAltTried = false;
+        return false;
     }
 
     private void onTick() {
@@ -1474,13 +1533,6 @@ public class PlayerActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
-        if (Prefs.isTodayKey(this, e)) { // atanmış Bugün tuşu
-            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                startActivity(new Intent(this, TodayActivity.class));
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-            }
-            return true;
-        }
         if (e.getAction() == KeyEvent.ACTION_UP && (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT
                 || k == KeyEvent.KEYCODE_MEDIA_REWIND || k == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)) {
             if (seekKeyUp(e)) return true;

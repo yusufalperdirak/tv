@@ -184,7 +184,7 @@ public class MainActivity extends Activity {
                 ytToken++;
                 ytPreview.stop();
                 ytPreview.web.setVisibility(View.GONE);
-                if (resumed && !appsMode) preview.play(selected, !Prefs.previewSound(MainActivity.this));
+                if (resumed && !appsMode) preview.play(selected.withUrl(Sources.best(MainActivity.this, selected)), !Prefs.previewSound(MainActivity.this));
             }
         });
         preview.setListener(new StreamPlayer.Listener() {
@@ -724,13 +724,13 @@ public class MainActivity extends Activity {
                 } else {
                     ytPreview.stop();
                     ytPreview.web.setVisibility(View.GONE);
-                    preview.play(c, muted);
+                    preview.play(c.withUrl(Sources.best(this, c)), muted);
                 }
             });
         } else {
             ytPreview.stop();
             ytPreview.web.setVisibility(View.GONE);
-            preview.play(c, muted);
+            preview.play(c.withUrl(Sources.best(this, c)), muted);
         }
     }
 
@@ -826,10 +826,6 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
-        if (Prefs.isTodayKey(this, e)) { // atanmış Bugün tuşu
-            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) go(new Intent(this, TodayActivity.class));
-            return true;
-        }
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             autoArmed = true;
             ui.removeCallbacks(autoWatch);
