@@ -277,7 +277,7 @@ public class MainActivity extends Activity {
         cardW = (usable - (CARDS_VISIBLE - 1) * CARD_GAP) / CARDS_VISIBLE;
         cardH = Math.round(cardW * 113f / 200f);
         chContent.setPadding(px(PANEL_IN), px(PANEL_OUT + PANEL_PAD_Y), px(PANEL_IN), px(PANEL_OUT + PANEL_PAD_Y));
-        chScroll.setFadingEdgeLength(px(PANEL_IN));
+        chScroll.setHorizontalFadingEdgeEnabled(false); // kenar karartması her karede ek katman çizer: kapalı
         chScroll.addView(chContent);
         // yarı saydam, yuvarlak köşeli panel; kaydırılan kartlar köşelerinden taşmaz
         // panel zemini ayrı bir katman: kaydırıcı ondan daha yüksek, böylece kartlar yalnızca sağ-sol kenarda kırpılır
@@ -535,12 +535,22 @@ public class MainActivity extends Activity {
     }
 
     /** Kartı kaydırıcının sol kenarına getir. */
+    private android.animation.ValueAnimator pageAnim;
+
     private void scrollTo(HorizontalScrollView hs, ViewGroup content, View v) {
         Rect r = new Rect();
         v.getDrawingRect(r);
         content.offsetDescendantRectToMyCoords(v, r);
         // kart panelin sol iç kenarına gelir; sona doğru kaydırma durur, böylece panelde hep tam 5 kart görünür
-        hs.smoothScrollTo(Math.max(0, r.left - px(PANEL_IN)), 0);
+        int target = Math.max(0, Math.min(r.left - px(PANEL_IN), content.getWidth() - hs.getWidth()));
+        if (target == hs.getScrollX()) return;
+        // akıcı sayfa geçişi: kendi animasyonumuz (sabit süre, yumuşak yavaşlama)
+        if (pageAnim != null) pageAnim.cancel();
+        pageAnim = android.animation.ValueAnimator.ofInt(hs.getScrollX(), target);
+        pageAnim.setDuration(420);
+        pageAnim.setInterpolator(Ui.FOCUS);
+        pageAnim.addUpdateListener(a -> hs.scrollTo((int) a.getAnimatedValue(), 0));
+        pageAnim.start();
     }
 
     private void refreshCards(Channel c) {
@@ -682,6 +692,7 @@ public class MainActivity extends Activity {
             for (int i = 0; i < appCards.getChildCount(); i++) soften(appCards.getChildAt(i), false);
         }
         soften(rowA, on); // uygulamalara inince kanal paneli bulanık ve soluk
+        rowsClip.setFading(on);
         statusBar.animate().alpha(on ? 0f : 1f).setDuration(400).setInterpolator(Ui.EASE).start();
         clock.setFocusable(!on);
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
@@ -727,7 +738,7 @@ public class MainActivity extends Activity {
         previewNote.setVisibility(View.GONE);
         ui.removeCallbacks(previewRunnable);
         // hızlı gezinirken her kartta yayın açılmasın: kısa süre durunca başlar
-        if (resumed) ui.postDelayed(previewRunnable, 450);
+        if (resumed) ui.postDelayed(previewRunnable, 600); // sayfa kayması bittikten sonra
     }
 
     private void startPreview() {

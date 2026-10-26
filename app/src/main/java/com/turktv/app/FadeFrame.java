@@ -23,13 +23,23 @@ final class FadeFrame extends FrameLayout {
         from = fromPx;
         to = toPx;
         mask.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-        setLayerType(LAYER_TYPE_HARDWARE, null);
         setWillNotDraw(false);
+    }
+
+    private boolean on;
+
+    /** Silinme yalnızca gerektiğinde (satırlar yukarı kaydığında) açık: kapalıyken ek çizim yükü yok. */
+    void setFading(boolean f) {
+        if (on == f) return;
+        on = f;
+        setLayerType(f ? LAYER_TYPE_HARDWARE : LAYER_TYPE_NONE, null);
+        invalidate();
     }
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
+        if (!on) return;
         if (lastH != getHeight()) {
             lastH = getHeight();
             mask.setShader(new LinearGradient(0, from, 0, to, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP));
