@@ -346,7 +346,7 @@ public class PlayerActivity extends Activity {
         });
         btns.addView(btnPause);
         // kaynak değiştir: kanalın bir sonraki yayın kaynağına geçer (yayın bölgede kapalıysa işe yarar)
-        btnRefresh = Ui.button(this, R.drawable.ic_swap, null, 46, 0x24F2F4F7);
+        btnRefresh = Ui.button(this, R.drawable.ic_swap, "Kaynak değiştir", 46, 0x24F2F4F7); // yazılı: kolay bulunur
         btnRefresh.setOnClickListener(v -> switchSource());
         addBtn(btns, btnRefresh);
         btnControl = Ui.button(this, R.drawable.ic_sliders, null, 46, 0x24F2F4F7);
@@ -637,6 +637,10 @@ public class PlayerActivity extends Activity {
         errRefresh = Ui.button(this, R.drawable.ic_refresh, "Yenile", 50, Ui.SURFACE2);
         errRefresh.setOnClickListener(v -> refresh());
         buttons.addView(errRefresh);
+        LinearLayout errSource = Ui.button(this, R.drawable.ic_swap, "Başka kaynak dene", 50, Ui.SURFACE2);
+        errSource.setOnClickListener(v -> switchSource());
+        buttons.addView(errSource);
+        ((LinearLayout.LayoutParams) errSource.getLayoutParams()).leftMargin = px(12);
         LinearLayout errNext = Ui.button(this, 0, "Sonraki kanal ▲", 50, Ui.SURFACE2);
         errNext.setOnClickListener(v -> changeChannel(index + 1));
         addBtn(buttons, errNext);
@@ -1469,6 +1473,10 @@ public class PlayerActivity extends Activity {
                     togglePause();
                     ui.postDelayed(() -> fillControl("pause"), 250);
                 }));
+        ctrlList.addView(ctrlRow(R.drawable.ic_swap, "Kaynağı değiştir", null, "source", () -> {
+            hideControl();
+            switchSource();
+        }));
         ctrlList.addView(ctrlRow(R.drawable.ic_refresh, "Yayını yenile", null, "refresh", () -> {
             hideControl();
             refresh();
