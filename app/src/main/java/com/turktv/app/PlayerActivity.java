@@ -35,6 +35,9 @@ import java.util.List;
 public class PlayerActivity extends Activity {
 
     public static final String EXTRA_INDEX = "index";
+    /** Önizlemeden kendiliğinden geçiş: açılışta bilgi alanı ve kontroller gösterilmez. */
+    public static final String EXTRA_QUIET = "quiet";
+    private boolean quietStart;
 
     private static final long STALL_MS = 12000;   // bu kadar süre görüntü gelmezse yeniden bağlan
     private static final long RECHECK_MS = 60000; // açılamayan yayını bu aralıkla tekrar dene
@@ -214,6 +217,11 @@ public class PlayerActivity extends Activity {
 
         setContentView(root);
         sink.requestFocus();
+        quietStart = getIntent().getBooleanExtra(EXTRA_QUIET, false);
+        if (quietStart) { // önizlemeden kendiliğinden geçiş: ekranda yalnızca video
+            osd.setVisibility(View.GONE);
+            clockBox.setVisibility(View.GONE);
+        }
         changeChannel(index);
     }
 
@@ -757,7 +765,8 @@ public class PlayerActivity extends Activity {
             stream.play(c.withUrl(srcList.get(Math.min(srcIdx, srcList.size() - 1))), false, force);
         }
         updateOsd();
-        showOsd();
+        if (quietStart) quietStart = false; // önizlemeden geçişte yalnızca video
+        else showOsd();
         updateLoading();
     }
 

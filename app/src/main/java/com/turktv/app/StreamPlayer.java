@@ -123,9 +123,11 @@ final class StreamPlayer {
             // Kesintisiz geçiş: önceki ekranın son karesi, bu ekranın ilk karesi gelene kadar üstte kalır
             if (freeze.getVisibility() == View.VISIBLE) {
                 cover.setVisibility(View.GONE);
+                // donuk kare, yeni yüzeye ilk gerçek kare çizilene kadar kalır (siyah ara olmasın);
+                // güvenlik için en geç 4 sn sonra kalkar
                 ui.postDelayed(() -> {
                     if (owner == this) unfreeze();
-                }, 900);
+                }, 4000);
             } else if (!hasFrame) {
                 cover.setAlpha(1f);
                 cover.setVisibility(View.VISIBLE);

@@ -838,11 +838,15 @@ public class MainActivity extends Activity {
 
     /** Diğer öğeler solarak kaybolur, önizlenen kanal kesintisiz tam ekrana geçer. */
     private void fadeAndWatch() {
-        fadeTo(selected, 650);
+        fadeTo(selected, 650, true); // kendiliğinden geçiş: yalnızca video, bilgi alanı yok
     }
 
     /** Ekrandaki öğeler solar, video hiç kararmadan tam ekran izlemeye geçilir. */
     private void fadeTo(final Channel c, long ms) {
+        fadeTo(c, ms, false);
+    }
+
+    private void fadeTo(final Channel c, long ms, final boolean quiet) {
         if (leaving) return;
         leaving = true;
         autoPending = false;
@@ -856,6 +860,7 @@ public class MainActivity extends Activity {
             Prefs.watched(this, c);
             Intent i = new Intent(this, PlayerActivity.class);
             i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
+            i.putExtra(PlayerActivity.EXTRA_QUIET, quiet);
             startActivity(i);
             overridePendingTransition(0, 0); // aynı görüntü devam eder: geçiş efekti yok
         }).start();
