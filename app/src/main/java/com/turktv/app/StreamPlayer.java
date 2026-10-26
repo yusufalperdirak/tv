@@ -339,6 +339,19 @@ final class StreamPlayer {
     }
 
     void detach() {
+        detach(1500);
+    }
+
+    /**
+     * Ana ekran tuşu gibi kısa çıkışlar için: görüntü bırakılır, ses kısılır ama çözücü bir süre
+     * açık kalır; ekran geri gelince yayın beklemeden kaldığı yerden akar.
+     */
+    void detachQuiet(long keepMs) {
+        if (shared != null && owner == this) shared.setVolume(0f);
+        detach(keepMs);
+    }
+
+    private void detach(long keepMs) {
         if (owner == this) {
             Bitmap b = grab();
             if (b != null) {
@@ -352,7 +365,7 @@ final class StreamPlayer {
         owner = null;
         playerView.setPlayer(null);
         ui.removeCallbacks(releaseIfUnused);
-        ui.postDelayed(releaseIfUnused, 1500);
+        ui.postDelayed(releaseIfUnused, keepMs);
     }
 
     /** Oynatmayı tamamen durdurur. */

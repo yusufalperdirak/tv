@@ -2,9 +2,9 @@ package com.turktv.app;
 
 import android.service.dreams.DreamService;
 
-/** TV'nin kendi ekran koruyucusu olarak seçilebilen GurbeTV ekran koruyucusu. */
+/** TV'nin kendi ekran koruyucusu olarak seçilebilen GurbeTV ekran koruyucusu (Bugün sayfası). */
 public class SaverDream extends DreamService {
-    private SaverView view;
+    private TodayPage view;
 
     @Override
     public void onAttachedToWindow() {
@@ -12,7 +12,7 @@ public class SaverDream extends DreamService {
         setInteractive(false);
         setFullscreen(true);
         Ui.initFonts(this);
-        view = new SaverView(this);
+        view = new TodayPage(this);
         setContentView(view);
     }
 

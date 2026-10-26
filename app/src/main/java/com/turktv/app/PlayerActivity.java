@@ -496,6 +496,10 @@ public class PlayerActivity extends Activity {
         panel.addView(progRow, Ui.margins(this, -1, -2, 0, 30, 0, 0)); // logo şeridiyle arasında rahat boşluk
     }
 
+    private static boolean mainVisible() {
+        return MainActivity.visibleNow;
+    }
+
     private static boolean isInside(View v, View parent) {
         for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) if (p == parent) return true;
         return false;
@@ -1757,13 +1761,14 @@ public class PlayerActivity extends Activity {
         ytToken++;
         if (overlay && isFinishing()) return; // ana ekran oynatıcıyı geri aldı: video durmaz
         if (overlay) {
-            // ana ekran tuşu: GurbeTV ana ekranı hemen geri gelirse yayın hiç durmaz;
-            // gerçekten başka yere gidildiyse 3 sn sonra durur
+            // ana ekran tuşu: görüntü hemen bırakılır (ana ekran geri gelince donmadan devam etsin),
+            // ses kısılır, çözücü 8 sn açık kalır; gerçekten çıkıldıysa sonra tamamen durur
+            stream.detachQuiet(8000);
+            yt.setMuted(true);
+            final YtPlayer y = yt;
             ui.postDelayed(() -> {
-                if (!stopped || isDestroyed()) return;
-                stream.detach();
-                yt.stop();
-            }, 3000);
+                if (MainActivity.sharedYt == y && !mainVisible()) y.stop();
+            }, 8000);
             return;
         }
         stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır

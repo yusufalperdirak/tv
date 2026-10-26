@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
      * video hiç durmaz, geçişlerde siyah ekran olmaz.
      */
     static StreamPlayer sharedPreview;
+    static boolean visibleNow; // ana ekran şu an önde mi
     static YtPlayer sharedYt;
     private boolean overlayPlayer;
     private StreamPlayer.Listener previewListener;
@@ -978,6 +979,7 @@ public class MainActivity extends Activity {
             return;
         }
         resumed = true;
+        visibleNow = true;
         boolean fromPlayer = overlayPlayer;
         if (overlayPlayer) { // izlemeden dönüldü: dinleyiciler yeniden bizim
             overlayPlayer = false;
@@ -1035,6 +1037,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        visibleNow = false;
         ui.removeCallbacks(saver);
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(autoWatch);
