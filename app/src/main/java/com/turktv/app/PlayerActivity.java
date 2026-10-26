@@ -1756,6 +1756,16 @@ public class PlayerActivity extends Activity {
         ui.removeCallbacks(tick);
         ytToken++;
         if (overlay && isFinishing()) return; // ana ekran oynatıcıyı geri aldı: video durmaz
+        if (overlay) {
+            // ana ekran tuşu: GurbeTV ana ekranı hemen geri gelirse yayın hiç durmaz;
+            // gerçekten başka yere gidildiyse 3 sn sonra durur
+            ui.postDelayed(() -> {
+                if (!stopped || isDestroyed()) return;
+                stream.detach();
+                yt.stop();
+            }, 3000);
+            return;
+        }
         stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır
         yt.stop();
     }

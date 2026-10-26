@@ -548,6 +548,25 @@ public class MainActivity extends Activity {
     /** Kartı kaydırıcının sol kenarına getir. */
     private android.animation.ValueAnimator pageAnim;
 
+    /** Menü bulanık ve saydamdan netleşerek gelir (bulanıklık Android 12+). */
+    private void revealUi() {
+        uiLayer.setAlpha(0f);
+        uiLayer.setScaleX(1.03f);
+        uiLayer.setScaleY(1.03f);
+        uiLayer.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(520).setInterpolator(Ui.FOCUS).start();
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            android.animation.ValueAnimator b = android.animation.ValueAnimator.ofFloat(px(24), 0f);
+            b.setDuration(520);
+            b.setInterpolator(Ui.FOCUS);
+            b.addUpdateListener(a -> {
+                float r = (float) a.getAnimatedValue();
+                uiLayer.setRenderEffect(r < 0.5f ? null : android.graphics.RenderEffect.createBlurEffect(r, r,
+                        android.graphics.Shader.TileMode.DECAL));
+            });
+            b.start();
+        }
+    }
+
     private void scrollTo(HorizontalScrollView hs, ViewGroup content, View v) {
         Rect r = new Rect();
         v.getDrawingRect(r);
@@ -959,6 +978,7 @@ public class MainActivity extends Activity {
             return;
         }
         resumed = true;
+        boolean fromPlayer = overlayPlayer;
         if (overlayPlayer) { // izlemeden dönüldü: dinleyiciler yeniden bizim
             overlayPlayer = false;
             preview.setListener(previewListener);
@@ -968,7 +988,8 @@ public class MainActivity extends Activity {
         autoPending = false;
         leaving = false;
         uiLayer.animate().cancel();
-        uiLayer.setAlpha(1f);
+        if (fromPlayer) revealUi(); // izlemeden dönüş: menü bulanıktan netleşerek belirir
+        else uiLayer.setAlpha(1f);
         channels = Lineup.get(this);
         selected = channels.get(Lineup.lastIndex(this));
         if (!lineupKey().equals(builtLineup)) {
