@@ -1749,6 +1749,7 @@ public class PlayerActivity extends Activity {
     protected void onRestart() {
         super.onRestart();
         stopped = false;
+        if (overlay) stream.resyncIfNeeded();
         if (!sleeping) changeChannel(index);
     }
 

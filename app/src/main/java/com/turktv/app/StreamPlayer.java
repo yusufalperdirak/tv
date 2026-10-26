@@ -349,6 +349,21 @@ final class StreamPlayer {
     /** Görüntüye dokunmadan yalnızca sesi kısar (ana ekran tuşu gibi kısa çıkışlar). */
     static void muteShared() {
         if (shared != null) shared.setVolume(0f);
+        needResync = true;
+    }
+
+    static boolean needResync;
+
+    /**
+     * Ekran kısa süre gizliyken görüntü çözücüsü bekler; geri gelince bir sonraki ana kareyi beklemesin
+     * diye bulunduğu yere yeniden konumlanır (bellekteki tampondan, anında).
+     */
+    void resyncIfNeeded() {
+        if (!needResync) return;
+        needResync = false;
+        if (owner != this || shared == null || shared.getPlaybackState() == Player.STATE_IDLE) return;
+        shared.seekTo(shared.getCurrentPosition());
+        shared.setPlayWhenReady(true);
     }
 
     void detachQuiet(long keepMs) {

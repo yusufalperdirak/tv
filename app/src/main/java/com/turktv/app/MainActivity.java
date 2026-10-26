@@ -990,7 +990,10 @@ public class MainActivity extends Activity {
         autoPending = false;
         leaving = false;
         uiLayer.animate().cancel();
-        if (fromPlayer) revealUi(); // izlemeden dönüş: menü bulanıktan netleşerek belirir
+        if (fromPlayer) {
+            revealUi(); // izlemeden dönüş: menü bulanıktan netleşerek belirir
+            preview.resyncIfNeeded(); // ana ekran tuşuyla dönüldüyse görüntü takılmadan yakalasın
+        }
         else uiLayer.setAlpha(1f);
         channels = Lineup.get(this);
         selected = channels.get(Lineup.lastIndex(this));
