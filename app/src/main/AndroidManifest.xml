@@ -81,6 +81,23 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
 
         <activity
+            android:name=".ScreenSaverActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+
+        <service
+            android:name=".SaverDream"
+            android:exported="true"
+            android:label="GurbeTV ekran koruyucu"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <activity
             android:name=".VideoActivity"
             android:exported="false"
             android:screenOrientation="landscape"

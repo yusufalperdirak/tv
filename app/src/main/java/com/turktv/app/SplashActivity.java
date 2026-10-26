@@ -28,6 +28,9 @@ import java.util.List;
 public class SplashActivity extends Activity {
 
     private static final long IN_MS = 1300, HOLD_MS = 1100, OUT_MS = 750;
+    /** Uygulama arka plandan dönünce: yalnızca animasyon oynar, sonra ana ekrana geri dönülür. */
+    static final String EXTRA_REPLAY = "replay";
+    private boolean replay;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean done;
     private TextView word;
@@ -69,8 +72,9 @@ public class SplashActivity extends Activity {
         setContentView(root);
 
         // Kanal listesi ve son kanalın yayını bu sırada hazırlansın ("ışık hızında açılış")
+        replay = getIntent().getBooleanExtra(EXTRA_REPLAY, false);
         Health.init(this);
-        try {
+        if (!replay) try {
             List<Channel> list = Lineup.get(this);
             Channel last = list.get(Lineup.lastIndex(this));
             if (last.youtube.isEmpty()) {
@@ -133,6 +137,11 @@ public class SplashActivity extends Activity {
     private void go() {
         if (done || isFinishing()) return;
         done = true;
+        if (replay) { // ana ekran zaten arkada
+            finish();
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            return;
+        }
         startActivity(new Intent(this, MainActivity.class));
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         finish();

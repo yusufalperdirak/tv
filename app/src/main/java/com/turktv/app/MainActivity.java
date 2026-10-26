@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
     // satırlar
     private LinearLayout rowsCol;
     private View statusBar;
-    private FrameLayout rowsClip;
+    private FadeFrame rowsClip;
     // tasarım px (1280 genişlik): kartlar ekranın alt kısmında, önizleme geniş görünür;
     // uygulamaların ilk sırası alttan yalnızca biraz görünür
     private static final int ROWS_CLIP_TOP = 96, ROWS_TOP = 462, HERO_TOP = 292;
@@ -87,6 +87,14 @@ public class MainActivity extends Activity {
     private boolean checkedUpdate;
 
     private final Runnable previewRunnable = this::startPreview;
+    private static final long SAVER_MS = 5 * 60_000;
+    private final Runnable saver = this::showSaver;
+
+    private void showSaver() {
+        if (!resumed || leaving) return;
+        startActivity(new Intent(this, ScreenSaverActivity.class));
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
     // 5 sn aynı kanalda durunca tam ekran izlemeye geç
     private static final long AUTO_WATCH_MS = 5000;
     private boolean autoArmed;      // kullanıcı kumandayla gezindiyse
@@ -249,16 +257,12 @@ public class MainActivity extends Activity {
         rowsCol.setClipChildren(false);
         rowsCol.setClipToPadding(false);
         // Satırlar saatin altından başlayan bir alanda kayar: yukarı kayınca sağ üstteki saatin üstüne binmez
-        rowsClip = new FrameLayout(this);
-        // üstteki sınır (saatin altı) uiLayer'ın kırpmasıyla gelir; satırlar kendi sınırlarına göre kırpılmaz
+        // yukarı kayan satırlar sert kesilmez: ekranın üstüne doğru yumuşakça silinir
+        rowsClip = new FadeFrame(this, px(40), px(ROWS_CLIP_TOP + 110));
         rowsClip.setClipChildren(false);
-        rowsClip.addOnLayoutChangeListener((v, l, t, r, btm, ol, ot, or, ob) ->
-                v.setClipBounds(new Rect(0, 0, r - l, btm - t)));
-        FrameLayout.LayoutParams cLp = new FrameLayout.LayoutParams(-1, -1);
-        cLp.topMargin = px(ROWS_CLIP_TOP);
-        uiLayer.addView(rowsClip, cLp);
+        uiLayer.addView(rowsClip, new FrameLayout.LayoutParams(-1, -1));
         FrameLayout.LayoutParams rLp = new FrameLayout.LayoutParams(-1, px(3000), Gravity.TOP); // uzun uygulama ızgarası sığsın
-        rLp.topMargin = px(ROWS_TOP - ROWS_CLIP_TOP);
+        rLp.topMargin = px(ROWS_TOP);
         rowsClip.addView(rowsCol, rLp);
 
         // Satır A: son izlenenler + kanallar (tek kaydırıcıda)
@@ -650,14 +654,34 @@ public class MainActivity extends Activity {
         int top = px(ROWS_TOP);
         float ty = Math.min(0, px(330) - (top + r.top));
         rowsCol.animate().translationY(ty).setDuration(380).setInterpolator(Ui.EASE).start();
+        // seçili sıranın üstünde kalan uygulama sıraları bulanık ve soluk
+        View focusRow = (View) card.getParent();
+        boolean above = true;
+        for (int i = 0; i < appCards.getChildCount(); i++) {
+            View row = appCards.getChildAt(i);
+            if (row == focusRow) above = false;
+            soften(row, above);
+        }
+    }
+
+    /** Arkada kalan satır: bulanık (Android 12+) ve soluk. */
+    private void soften(View v, boolean on) {
+        v.animate().alpha(on ? 0.5f : 1f).setDuration(300).start();
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            v.setRenderEffect(on ? android.graphics.RenderEffect.createBlurEffect(px(10), px(10),
+                    android.graphics.Shader.TileMode.DECAL) : null);
+        }
     }
 
     /** Uygulamalara geçiş: arka plan siyah-yeşile döner, kanal önizlemesi durur. */
     private void setAppsMode(boolean on) {
         if (appsMode == on) return;
         appsMode = on;
-        if (!on) rowsCol.animate().translationY(0).setDuration(380).setInterpolator(Ui.EASE).start();
-        rowA.animate().alpha(on ? 0.6f : 1f).setDuration(380).start();
+        if (!on) {
+            rowsCol.animate().translationY(0).setDuration(380).setInterpolator(Ui.EASE).start();
+            for (int i = 0; i < appCards.getChildCount(); i++) soften(appCards.getChildAt(i), false);
+        }
+        soften(rowA, on); // uygulamalara inince kanal paneli bulanık ve soluk
         statusBar.animate().alpha(on ? 0f : 1f).setDuration(400).setInterpolator(Ui.EASE).start();
         clock.setFocusable(!on);
         hero.animate().alpha(on ? 0f : 1f).translationY(on ? -px(20) : 0).setDuration(320).setInterpolator(Ui.EASE).start();
@@ -829,6 +853,8 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
+        ui.removeCallbacks(saver);
+        ui.postDelayed(saver, SAVER_MS);
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             autoArmed = true;
             ui.removeCallbacks(autoWatch);
@@ -895,6 +921,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // TV'nin kendi ekran koruyucusu yerine bizimki: ekran açık kalır, 5 dk tuşa basılmazsa açılır
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        ui.removeCallbacks(saver);
+        ui.postDelayed(saver, SAVER_MS);
         if (builtEdge != Prefs.edge(this)) {
             recreate();
             return;
@@ -950,6 +980,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        ui.removeCallbacks(saver);
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(autoWatch);
         ui.removeCallbacks(tick);
