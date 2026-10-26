@@ -1761,13 +1761,16 @@ public class PlayerActivity extends Activity {
         ytToken++;
         if (overlay && isFinishing()) return; // ana ekran oynatıcıyı geri aldı: video durmaz
         if (overlay) {
-            // ana ekran tuşu: görüntü hemen bırakılır (ana ekran geri gelince donmadan devam etsin),
-            // ses kısılır, çözücü 8 sn açık kalır; gerçekten çıkıldıysa sonra tamamen durur
-            stream.detachQuiet(8000);
+            // ana ekran tuşu: görüntüye hiç dokunulmaz (ana ekran gelince aynı yüzeyde akmaya devam eder),
+            // yalnızca ses kısılır; gerçekten başka yere gidildiyse 8 sn sonra tamamen durur
+            StreamPlayer.muteShared();
             yt.setMuted(true);
             final YtPlayer y = yt;
-            ui.postDelayed(() -> {
-                if (MainActivity.sharedYt == y && !mainVisible()) y.stop();
+            final StreamPlayer sp = stream;
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (mainVisible()) return;
+                sp.detach();
+                if (MainActivity.sharedYt == y) y.stop();
             }, 8000);
             return;
         }

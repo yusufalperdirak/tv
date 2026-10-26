@@ -14,7 +14,6 @@ public class App extends Application {
         override("DEFAULT", Ui.REGULAR);
         override("SANS_SERIF", Ui.REGULAR);
         override("DEFAULT_BOLD", Ui.BOLD);
-        registerActivityLifecycleCallbacks(new Lifecycle());
     }
 
     /**

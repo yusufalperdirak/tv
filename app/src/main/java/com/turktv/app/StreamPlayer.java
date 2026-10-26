@@ -346,6 +346,11 @@ final class StreamPlayer {
      * Ana ekran tuşu gibi kısa çıkışlar için: görüntü bırakılır, ses kısılır ama çözücü bir süre
      * açık kalır; ekran geri gelince yayın beklemeden kaldığı yerden akar.
      */
+    /** Görüntüye dokunmadan yalnızca sesi kısar (ana ekran tuşu gibi kısa çıkışlar). */
+    static void muteShared() {
+        if (shared != null) shared.setVolume(0f);
+    }
+
     void detachQuiet(long keepMs) {
         if (shared != null && owner == this) shared.setVolume(0f);
         detach(keepMs);

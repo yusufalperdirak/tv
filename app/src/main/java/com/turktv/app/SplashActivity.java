@@ -41,6 +41,22 @@ public class SplashActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // açılış animasyonu kaldırıldı: son kanal arka planda hazırlanır, ana ekran hemen açılır
+        Health.init(this);
+        try {
+            List<Channel> list = Lineup.get(this);
+            Channel last = list.get(Lineup.lastIndex(this));
+            if (last.youtube.isEmpty()) {
+                warm = new StreamPlayer(this);
+                warm.play(last.withUrl(Sources.best(this, last)), true);
+            }
+        } catch (Exception ignored) {
+        }
+        done = true;
+        startActivity(new Intent(this, MainActivity.class));
+        overridePendingTransition(0, 0);
+        finish();
+        if (done) return;
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE); // beyaz zemin
