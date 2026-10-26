@@ -87,6 +87,15 @@ public class MainActivity extends Activity {
     private boolean checkedUpdate;
 
     private final Runnable previewRunnable = this::startPreview;
+    /**
+     * Tam ekran izleme bu ekranın üstünde saydam açılır ve aynı oynatıcıyı kullanır:
+     * video hiç durmaz, geçişlerde siyah ekran olmaz.
+     */
+    static StreamPlayer sharedPreview;
+    static YtPlayer sharedYt;
+    private boolean overlayPlayer;
+    private StreamPlayer.Listener previewListener;
+    private YtPlayer.Listener ytListener;
     private static final long SAVER_MS = 5 * 60_000;
     private final Runnable saver = this::showSaver;
 
@@ -178,11 +187,13 @@ public class MainActivity extends Activity {
         channelBg = new FrameLayout(this);
         root.addView(channelBg, new FrameLayout.LayoutParams(-1, -1));
         preview = new StreamPlayer(this);
+        sharedPreview = preview;
         channelBg.addView(preview.view, new FrameLayout.LayoutParams(-1, -1));
         ytPreview = new YtPlayer(this);
+        sharedYt = ytPreview;
         ytPreview.web.setVisibility(View.GONE);
         channelBg.addView(ytPreview.web, new FrameLayout.LayoutParams(-1, -1));
-        ytPreview.setListener(new YtPlayer.Listener() {
+        ytPreview.setListener(ytListener = new YtPlayer.Listener() {
             @Override
             public void onState(int state) {
             }
@@ -195,7 +206,7 @@ public class MainActivity extends Activity {
                 if (resumed && !appsMode) preview.play(selected.withUrl(Sources.best(MainActivity.this, selected)), !Prefs.previewSound(MainActivity.this));
             }
         });
-        preview.setListener(new StreamPlayer.Listener() {
+        preview.setListener(previewListener = new StreamPlayer.Listener() {
             @Override
             public void onState(int state) {
                 if (state == 1) {
@@ -861,6 +872,8 @@ public class MainActivity extends Activity {
             Intent i = new Intent(this, PlayerActivity.class);
             i.putExtra(PlayerActivity.EXTRA_INDEX, c.index);
             i.putExtra(PlayerActivity.EXTRA_QUIET, quiet);
+            i.putExtra(PlayerActivity.EXTRA_OVERLAY, true);
+            overlayPlayer = true;
             startActivity(i);
             overridePendingTransition(0, 0); // aynı görüntü devam eder: geçiş efekti yok
         }).start();
@@ -909,7 +922,7 @@ public class MainActivity extends Activity {
 
     private void openChannel(Channel c) {
         if (resumed) {
-            fadeTo(c, 300);
+            fadeTo(c, 300, true); // önizlemeden OK ile girişte de yalnızca video
             return;
         }
         Prefs.watched(this, c);
@@ -946,6 +959,11 @@ public class MainActivity extends Activity {
             return;
         }
         resumed = true;
+        if (overlayPlayer) { // izlemeden dönüldü: dinleyiciler yeniden bizim
+            overlayPlayer = false;
+            preview.setListener(previewListener);
+            ytPreview.setListener(ytListener);
+        }
         autoArmed = false;
         autoPending = false;
         leaving = false;
@@ -1002,14 +1020,17 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(tick);
         clock.stop();
         aerial.stop();
-        preview.detach(); // tam ekrana geçilirse yayın kesilmeden devam eder
         ytToken++;
+        if (overlayPlayer) return; // izleme ekranı bu oynatıcıyı devraldı: hiçbir şey durmaz
+        preview.detach(); // tam ekrana geçilirse yayın kesilmeden devam eder
         ytPreview.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
+        if (sharedPreview == preview) sharedPreview = null;
+        if (sharedYt == ytPreview) sharedYt = null;
         preview.release();
         ytPreview.destroy();
         super.onDestroy();

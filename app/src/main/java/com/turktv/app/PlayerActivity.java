@@ -37,6 +37,9 @@ public class PlayerActivity extends Activity {
     public static final String EXTRA_INDEX = "index";
     /** Önizlemeden kendiliğinden geçiş: açılışta bilgi alanı ve kontroller gösterilmez. */
     public static final String EXTRA_QUIET = "quiet";
+    /** Ana ekranın üstünde saydam aç; ana ekranın oynatıcısını kullan (kesintisiz geçiş). */
+    public static final String EXTRA_OVERLAY = "overlay";
+    private boolean overlay;
     private boolean quietStart;
 
     private static final long STALL_MS = 12000;   // bu kadar süre görüntü gelmezse yeniden bağlan
@@ -154,10 +157,17 @@ public class PlayerActivity extends Activity {
         index = Math.max(0, Math.min(getIntent().getIntExtra(EXTRA_INDEX, 0), channels.size() - 1));
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        overlay = getIntent().getBooleanExtra(EXTRA_OVERLAY, false)
+                && MainActivity.sharedPreview != null && MainActivity.sharedYt != null;
+        root.setBackgroundColor(overlay ? Color.TRANSPARENT : Color.BLACK);
 
-        stream = new StreamPlayer(this);
-        root.addView(stream.view, new FrameLayout.LayoutParams(-1, -1));
+        if (overlay) {
+            // video ana ekranın penceresinde oynamaya devam eder; bu ekran yalnızca üstündeki kontroller
+            stream = MainActivity.sharedPreview;
+        } else {
+            stream = new StreamPlayer(this);
+            root.addView(stream.view, new FrameLayout.LayoutParams(-1, -1));
+        }
         stream.setListener(new StreamPlayer.Listener() {
             @Override
             public void onState(int s) {
@@ -170,9 +180,13 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        yt = new YtPlayer(this);
-        yt.web.setVisibility(View.GONE);
-        root.addView(yt.web, new FrameLayout.LayoutParams(-1, -1));
+        if (overlay) {
+            yt = MainActivity.sharedYt;
+        } else {
+            yt = new YtPlayer(this);
+            yt.web.setVisibility(View.GONE);
+            root.addView(yt.web, new FrameLayout.LayoutParams(-1, -1));
+        }
         yt.setListener(new YtPlayer.Listener() {
             @Override
             public void onState(int s) {
@@ -1740,16 +1754,19 @@ public class PlayerActivity extends Activity {
         clock.stop();
         stopped = true;
         ui.removeCallbacks(tick);
-        stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır
         ytToken++;
+        if (overlay && isFinishing()) return; // ana ekran oynatıcıyı geri aldı: video durmaz
+        stream.detach(); // geri dönülürse ana ekran yayını kesmeden devralır
         yt.stop();
     }
 
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
-        stream.release();
-        yt.destroy();
+        if (!overlay) { // saydam modda oynatıcılar ana ekranındır
+            stream.release();
+            yt.destroy();
+        }
         super.onDestroy();
     }
 }

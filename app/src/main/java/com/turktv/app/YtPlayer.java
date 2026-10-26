@@ -28,6 +28,8 @@ final class YtPlayer {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private Listener listener;
     private int token = 0;
+    private String currentId;   // şu an yüklü video
+    private int lastState = -1;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     YtPlayer(Context c) {
@@ -60,6 +62,15 @@ final class YtPlayer {
     }
 
     void play(String videoId, boolean muted) {
+        // aynı yayın zaten oynuyorsa yeniden yükleme yok (ekran kararmaz): yalnızca ses ayarlanır
+        if (videoId.equals(currentId) && (lastState == 1 || lastState == 3)) {
+            setMuted(muted);
+            final int st = lastState;
+            ui.post(() -> { if (listener != null) listener.onState(st); });
+            return;
+        }
+        currentId = videoId;
+        lastState = -1;
         int t = ++token;
         web.animate().cancel();
         web.setAlpha(0f);
@@ -92,6 +103,8 @@ final class YtPlayer {
 
     void stop() {
         token++;
+        currentId = null;
+        lastState = -1;
         web.animate().cancel();
         web.setAlpha(0f);
         web.loadUrl("about:blank");
@@ -124,6 +137,7 @@ final class YtPlayer {
         public void onState(int t, int state) {
             ui.post(() -> {
                 if (t != token) return;
+                lastState = state;
                 if (state == 1) web.animate().alpha(1f).setDuration(200).start();
                 if (listener != null) listener.onState(state);
             });
