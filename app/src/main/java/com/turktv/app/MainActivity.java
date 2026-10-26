@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
     private boolean overlayPlayer;
     private StreamPlayer.Listener previewListener;
     private YtPlayer.Listener ytListener;
-    private static final long SAVER_MS = 5 * 60_000;
+    private static final long SAVER_MS = 2 * 60_000; // ekran koruyucu 2 dk sonra
     private final Runnable saver = this::showSaver;
 
     private void showSaver() {

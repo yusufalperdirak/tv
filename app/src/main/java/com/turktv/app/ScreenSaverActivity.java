@@ -38,15 +38,13 @@ public class ScreenSaverActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        page.start();
-        ui.postDelayed(drift, 60_000);
+        page.start(); // sayfa sabit durur (kayma yok)
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         page.stop();
-        ui.removeCallbacks(drift);
     }
 
     @Override

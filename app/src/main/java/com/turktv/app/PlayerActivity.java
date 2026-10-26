@@ -100,6 +100,7 @@ public class PlayerActivity extends Activity {
     private boolean ytAltMode, ytAltTried;
     private final java.util.ArrayDeque<Long> rebuffers = new java.util.ArrayDeque<>();
     private boolean hadPlayed;
+    private final WebSniffer sniffer = new WebSniffer();
     private boolean warmed;
     private static final long STILL_WATCHING_MS = 3 * 3600_000L, ASK_MS = 5 * 60_000L;
     private TextView liveBadge;   // "● CANLI" ya da "1:20 geride"
@@ -344,8 +345,9 @@ public class PlayerActivity extends Activity {
             showOsd();
         });
         btns.addView(btnPause);
-        btnRefresh = Ui.button(this, R.drawable.ic_refresh, null, 46, 0x24F2F4F7);
-        btnRefresh.setOnClickListener(v -> refresh());
+        // kaynak değiştir: kanalın bir sonraki yayın kaynağına geçer (yayın bölgede kapalıysa işe yarar)
+        btnRefresh = Ui.button(this, R.drawable.ic_swap, null, 46, 0x24F2F4F7);
+        btnRefresh.setOnClickListener(v -> switchSource());
         addBtn(btns, btnRefresh);
         btnControl = Ui.button(this, R.drawable.ic_sliders, null, 46, 0x24F2F4F7);
         btnControl.setOnClickListener(v -> showControl());
@@ -726,6 +728,46 @@ public class PlayerActivity extends Activity {
         playChannel(i, false);
     }
 
+    /**
+     * Elle kaynak değiştirme. Sıra: resmi YouTube (varsa) → listedeki adresler → kanalın sitesi → YouTube yedeği.
+     */
+    private void switchSource() {
+        Channel c = cur();
+        if (srcList == null) srcList = Sources.of(this, c);
+        int ytFirst = c.youtube.isEmpty() ? 0 : 1;
+        int ytLast = c.ytAlt.isEmpty() ? 0 : 1;
+        int total = ytFirst + srcList.size() + ytLast;
+        if (total <= 1) {
+            Toast.makeText(this, c.name + " için başka kaynak yok, yenileniyor", Toast.LENGTH_SHORT).show();
+            refresh();
+            return;
+        }
+        int pos;
+        if (usingYt && !ytAltMode && ytFirst == 1) pos = 0;
+        else if (ytAltMode) pos = total - 1;
+        else pos = ytFirst + srcIdx;
+        int next = (pos + 1) % total;
+        retries = 0;
+        ytAltTried = false;
+        if (next < ytFirst) {          // resmi YouTube yayını
+            ytFailed = false;
+            ytAltMode = false;
+        } else if (next >= ytFirst + srcList.size()) { // YouTube yedeği
+            ytFailed = true;
+            ytAltMode = true;
+        } else {                        // listedeki adres ya da kanalın sitesi
+            ytFailed = true;
+            ytAltMode = false;
+            srcIdx = next - ytFirst;
+        }
+        String label = next < ytFirst || next >= ytFirst + srcList.size() ? "YouTube"
+                : srcList.get(srcIdx).startsWith(Sources.WEB) ? "kanalın sitesi" : "adres " + (srcIdx + 1);
+        Toast.makeText(this, c.name + " · kaynak " + (next + 1) + " / " + total + " (" + label + ")", Toast.LENGTH_SHORT).show();
+        hideError();
+        playChannel(index, true);
+        showOsd();
+    }
+
     private void refresh() {
         Toast.makeText(this, cur().name + " yenileniyor", Toast.LENGTH_SHORT).show();
         retries = 0;
@@ -780,7 +822,23 @@ public class PlayerActivity extends Activity {
             usingYt = false;
             yt.stop();
             yt.web.setVisibility(View.GONE);
-            stream.play(c.withUrl(srcList.get(Math.min(srcIdx, srcList.size() - 1))), false, force);
+            String src = srcList.get(Math.min(srcIdx, srcList.size() - 1));
+            sniffer.cancel();
+            if (src.startsWith(Sources.WEB)) {
+                // kanalın kendi sitesi: sayfadaki oynatıcının yayın adresini yakala, bizim oynatıcıda aç
+                final String page = src.substring(Sources.WEB.length());
+                stream.stop();
+                sniffer.find(this, page, (found, ua) -> {
+                    if (t != ytToken || stopped) return;
+                    if (found == null) {
+                        reconnect();
+                        return;
+                    }
+                    stream.play(Channel.web(c.name, found, ua, page), false, true);
+                });
+            } else {
+                stream.play(c.withUrl(src), false, force);
+            }
         }
         updateOsd();
         if (quietStart) quietStart = false; // önizlemeden geçişte yalnızca video
@@ -1782,6 +1840,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
+        sniffer.cancel();
         if (!overlay) { // saydam modda oynatıcılar ana ekranındır
             stream.release();
             yt.destroy();

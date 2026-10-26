@@ -13,6 +13,8 @@ import java.util.List;
 final class Sources {
     private Sources() {}
 
+    static final String WEB = "web:";
+
     private static SharedPreferences p(Context c) {
         return c.getSharedPreferences("sources", Context.MODE_PRIVATE);
     }
@@ -24,6 +26,7 @@ final class Sources {
         for (String a : ch.alts) if (a != null && !a.trim().isEmpty() && !l.contains(a.trim())) l.add(a.trim());
         String scanned = Prefs.altUrl(c, ch.url);
         if (scanned != null && !l.contains(scanned)) l.add(scanned);
+        if (!ch.web.isEmpty()) l.add(WEB + ch.web); // kanalın sitesinden yakalanan yayın
         String good = p(c).getString(ch.name, null);
         if (good != null && l.remove(good)) l.add(0, good);
         return l;
@@ -31,7 +34,8 @@ final class Sources {
 
     /** Kanal için en iyi bilinen adres. */
     static String best(Context c, Channel ch) {
-        return of(c, ch).get(0);
+        for (String u : of(c, ch)) if (!u.startsWith(WEB)) return u; // önizleme doğrudan adresle
+        return ch.url;
     }
 
     /** Bu adres sorunsuz oynadı. */
