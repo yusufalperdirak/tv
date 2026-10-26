@@ -26,7 +26,8 @@ final class Sources {
         for (String a : ch.alts) if (a != null && !a.trim().isEmpty() && !l.contains(a.trim())) l.add(a.trim());
         String scanned = Prefs.altUrl(c, ch.url);
         if (scanned != null && !l.contains(scanned)) l.add(scanned);
-        if (!ch.web.isEmpty()) l.add(WEB + ch.web); // kanalın sitesinden yakalanan yayın
+        // kanalın (ve kardeş kanalının, ör. Euro Star) sitesinden yakalanan yayın; "a|b" birden çok sayfa
+        if (!ch.web.isEmpty()) for (String w : ch.web.split("\\|")) if (!w.trim().isEmpty()) l.add(WEB + w.trim());
         String good = p(c).getString(ch.name, null);
         if (good != null && l.remove(good)) l.add(0, good);
         return l;

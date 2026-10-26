@@ -764,8 +764,15 @@ public class PlayerActivity extends Activity {
             ytAltMode = false;
             srcIdx = next - ytFirst;
         }
-        String label = next < ytFirst || next >= ytFirst + srcList.size() ? "YouTube"
-                : srcList.get(srcIdx).startsWith(Sources.WEB) ? "kanalın sitesi" : "adres " + (srcIdx + 1);
+        String label;
+        if (next < ytFirst || next >= ytFirst + srcList.size()) label = "YouTube";
+        else {
+            String u = srcList.get(srcIdx);
+            String host = android.net.Uri.parse(u.startsWith(Sources.WEB) ? u.substring(Sources.WEB.length()) : u).getHost();
+            if (u.toLowerCase(Actions.TR).contains("eurostar")) label = "Euro Star" + (u.startsWith(Sources.WEB) ? " sitesi" : "");
+            else if (u.startsWith(Sources.WEB)) label = (host == null ? "kanalın sitesi" : host.replaceFirst("^www\\.", ""));
+            else label = "adres " + (srcIdx + 1);
+        }
         Toast.makeText(this, c.name + " · kaynak " + (next + 1) + " / " + total + " (" + label + ")", Toast.LENGTH_SHORT).show();
         hideError();
         playChannel(index, true);
