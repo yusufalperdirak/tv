@@ -838,15 +838,22 @@ public class PlayerActivity extends Activity {
             if (src.startsWith(Sources.WEB)) {
                 // kanalın kendi sitesi: sayfadaki oynatıcının yayın adresini yakala, bizim oynatıcıda aç
                 final String page = src.substring(Sources.WEB.length());
-                stream.stop();
-                sniffer.find(this, page, (found, ua) -> {
-                    if (t != ytToken || stopped) return;
-                    if (found == null) {
-                        reconnect();
-                        return;
-                    }
-                    stream.play(Channel.web(c.name, found, ua, page), false, true);
-                });
+                Channel cached = retries == 0 ? Sources.sniffedFor(c, page) : null;
+                if (cached != null) { // az önce yakalandı (ör. önizlemede): beklemeden, kesintisiz
+                    stream.play(cached, false, force && retries > 0);
+                } else {
+                    Sources.forgetSniffed(c);
+                    stream.stop();
+                    sniffer.find(this, page, (found, ua) -> {
+                        if (t != ytToken || stopped) return;
+                        if (found == null) {
+                            reconnect();
+                            return;
+                        }
+                        Sources.sniffed(c, found, ua, page);
+                        stream.play(Channel.web(c.name, found, ua, page), false, true);
+                    });
+                }
             } else {
                 stream.play(c.withUrl(src), false, force);
             }

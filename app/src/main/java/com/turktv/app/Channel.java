@@ -35,6 +35,7 @@ public class Channel {
     public final String youtube;  // varsa önce bu resmi YouTube canlı yayını denenir (ör. "@atv"), yoksa boş
     public final String[] alts;   // yedek yayın adresleri (tvg-alt="a|b"); ana adres açılmazsa sırayla denenir
     public final String web;      // kanalın canlı yayın sayfası (tvg-web); yayın adresi oradan yakalanır
+    public boolean preferWeb;     // tvg-prefer="web": önce sayfadan yakalanan yayın denenir
     public final String ytAlt;    // son çare: kanalın resmi YouTube canlı yayını (tvg-ytalt="@kanal"), yoksa boş
     public final int color;
 
@@ -72,12 +73,16 @@ public class Channel {
 
     /** Aynı kanal, başka bir sırayla (kullanıcının düzenlediği dizilim için). */
     Channel at(int newIndex) {
-        return new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube, alts, ytAlt, web);
+        Channel n = new Channel(newIndex, name, category, url, logo, ua, referer, tvgId, youtube, alts, ytAlt, web);
+        n.preferWeb = preferWeb;
+        return n;
     }
 
     /** Aynı kanal, yedek yayın adresiyle. */
     Channel withUrl(String newUrl) {
-        return new Channel(index, name, category, newUrl, logo, ua, referer, tvgId, youtube, alts, ytAlt, web);
+        Channel n = new Channel(index, name, category, newUrl, logo, ua, referer, tvgId, youtube, alts, ytAlt, web);
+        n.preferWeb = preferWeb;
+        return n;
     }
 
     static final String LOCAL_FILE = "channels.m3u";
@@ -169,6 +174,7 @@ public class Channel {
     static List<Channel> parse(String m3u) throws Exception {
         final class Raw {
             String name, group, logo, url, ua, ref, id, yt, alt, ytAlt, web;
+            boolean preferWeb;
             int order;
         }
         List<Raw> raws = new ArrayList<>();
@@ -207,6 +213,7 @@ public class Channel {
                     else if (k.equals("tvg-alt")) cur.alt = m.group(2).trim();
                     else if (k.equals("tvg-ytalt")) cur.ytAlt = m.group(2).trim();
                     else if (k.equals("tvg-web")) cur.web = m.group(2).trim();
+                    else if (k.equals("tvg-prefer")) cur.preferWeb = "web".equalsIgnoreCase(m.group(2).trim());
                     else if (k.equals("tvg-name") && cur.name.isEmpty()) cur.name = m.group(2);
                 }
             } else if (line.startsWith("#EXTVLCOPT:") && cur != null) {
@@ -231,6 +238,7 @@ public class Channel {
         for (Raw x : raws) {
             String[] alts = x.alt.isEmpty() ? new String[0] : x.alt.split("\\|");
             list.add(new Channel(list.size(), x.name, category(x.group), x.url, x.logo, x.ua, x.ref, x.id, x.yt, alts, x.ytAlt, x.web));
+            list.get(list.size() - 1).preferWeb = x.preferWeb;
         }
         return list;
     }

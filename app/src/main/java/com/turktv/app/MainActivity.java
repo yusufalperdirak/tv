@@ -204,7 +204,7 @@ public class MainActivity extends Activity {
                 ytToken++;
                 ytPreview.stop();
                 ytPreview.web.setVisibility(View.GONE);
-                if (resumed && !appsMode) preview.play(selected.withUrl(Sources.best(MainActivity.this, selected)), !Prefs.previewSound(MainActivity.this));
+                if (resumed && !appsMode) preview.play(Sources.preview(MainActivity.this, selected), !Prefs.previewSound(MainActivity.this));
             }
         });
         preview.setListener(previewListener = new StreamPlayer.Listener() {
@@ -772,6 +772,26 @@ public class MainActivity extends Activity {
         if (resumed) ui.postDelayed(previewRunnable, 600); // sayfa kayması bittikten sonra
     }
 
+    private final WebSniffer previewSniffer = new WebSniffer();
+
+    /** Önizlemeyi başlat; kanalın tercihli kaynağı bir web sayfasıysa yayın adresi önce oradan yakalanır. */
+    private void playPreview(final Channel c, final boolean muted) {
+        previewSniffer.cancel();
+        java.util.List<String> src = Sources.of(this, c);
+        String first = src.get(0);
+        if (first.startsWith(Sources.WEB) && Sources.sniffedFor(c, first.substring(Sources.WEB.length())) == null) {
+            final String page = first.substring(Sources.WEB.length());
+            final int t = ytToken;
+            previewSniffer.find(this, page, (found, ua) -> {
+                if (t != ytToken || !resumed || selected != c || appsMode) return;
+                if (found != null) Sources.sniffed(c, found, ua, page);
+                preview.play(Sources.preview(this, c), muted);
+            });
+            return;
+        }
+        preview.play(Sources.preview(this, c), muted);
+    }
+
     private void startPreview() {
         if (!resumed || appsMode) return;
         previewPlaying = false;
@@ -793,13 +813,13 @@ public class MainActivity extends Activity {
                 } else {
                     ytPreview.stop();
                     ytPreview.web.setVisibility(View.GONE);
-                    preview.play(c.withUrl(Sources.best(this, c)), muted);
+                    playPreview(c, muted);
                 }
             });
         } else {
             ytPreview.stop();
             ytPreview.web.setVisibility(View.GONE);
-            preview.play(c.withUrl(Sources.best(this, c)), muted);
+            playPreview(c, muted);
         }
     }
 

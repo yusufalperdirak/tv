@@ -26,11 +26,41 @@ final class Sources {
         for (String a : ch.alts) if (a != null && !a.trim().isEmpty() && !l.contains(a.trim())) l.add(a.trim());
         String scanned = Prefs.altUrl(c, ch.url);
         if (scanned != null && !l.contains(scanned)) l.add(scanned);
-        // kanalın (ve kardeş kanalının, ör. Euro Star) sitesinden yakalanan yayın; "a|b" birden çok sayfa
-        if (!ch.web.isEmpty()) for (String w : ch.web.split("\\|")) if (!w.trim().isEmpty()) l.add(WEB + w.trim());
+        // kanalın sitesinden (ör. puhutv) yakalanan yayın; "a|b" birden çok sayfa
+        int at = ch.preferWeb ? 0 : l.size(); // tvg-prefer="web": sayfalar en başta
+        if (!ch.web.isEmpty()) for (String w : ch.web.split("\\|")) if (!w.trim().isEmpty()) l.add(at++, WEB + w.trim());
         String good = p(c).getString(ch.name, null);
         if (good != null && l.remove(good)) l.add(0, good);
         return l;
+    }
+
+    // ---- sayfadan yakalanan yayın adresleri (kısa süre geçerli; önizleme ve izleme aynı adresi kullanır)
+    private static final java.util.Map<String, String[]> sniffed = new java.util.HashMap<>(); // ad → {url, ua, sayfa, zaman}
+    private static final long SNIFF_TTL = 20 * 60_000;
+
+    static void sniffed(Channel ch, String url, String ua, String page) {
+        sniffed.put(ch.name, new String[]{url, ua, page, String.valueOf(System.currentTimeMillis())});
+    }
+
+    static void forgetSniffed(Channel ch) {
+        sniffed.remove(ch.name);
+    }
+
+    /** Bu sayfa için taze yakalanmış yayın (yoksa null). */
+    static Channel sniffedFor(Channel ch, String page) {
+        String[] v = sniffed.get(ch.name);
+        if (v == null || !v[2].equals(page) || System.currentTimeMillis() - Long.parseLong(v[3]) > SNIFF_TTL) return null;
+        return Channel.web(ch.name, v[0], v[1], v[2]);
+    }
+
+    /** Ana ekran önizlemesinde oynatılacak kanal (sayfa kaynağı tercihliyse ve taze adres varsa o). */
+    static Channel preview(Context c, Channel ch) {
+        String first = of(c, ch).get(0);
+        if (first.startsWith(WEB)) {
+            Channel s = sniffedFor(ch, first.substring(WEB.length()));
+            if (s != null) return s;
+        }
+        return ch.withUrl(best(c, ch));
     }
 
     /** Kanal için en iyi bilinen adres. */
