@@ -74,7 +74,16 @@ public class PlayerActivity extends Activity {
     private TextView osdNum, osdName, osdLoading;
     private LinearLayout epgRow;
     // şimdi / sıradaki kartları
-    private LinearLayout progRow, nowCard, nextCard;
+    private LinearLayout progRow, nowCard, nextCard, pastCard;
+    // önceki programlar: Şimdi kartında ◀ ile geriye gidilir, OK ile resmi bölümü aranır
+    private TextView pastLabel, pastTitle;
+    private java.util.List<Epg.Prog> pastList = new java.util.ArrayList<>();
+    private int pastIdx = -1;
+    private FrameLayout epPanel;
+    private LinearLayout epList;
+    private TextView epHead;
+    private boolean epOpen;
+    private int epToken;
     private ProgRing nowRing;
     private TextView nowCardTitle, nowCardTime, nextCardTitle, nextCardTime, nextCardStart;
     private TextView nowTitle, nowTime, nextTitle;
@@ -214,6 +223,7 @@ public class PlayerActivity extends Activity {
 
         buildClock(root);
         buildOsd(root);
+        buildEpisodePanel(root);
         buildSeekBubble(root);
         buildError(root);
         buildZap(root);
@@ -428,6 +438,42 @@ public class PlayerActivity extends Activity {
         progRow.setClipToPadding(false);
         progRow.setPadding(0, px(8), 0, px(8));
 
+        // önceki program kartı (yalnızca geriye gidilince görünür)
+        pastCard = new LinearLayout(this);
+        pastCard.setGravity(Gravity.CENTER_VERTICAL);
+        pastCard.setPadding(px(19), 0, px(26), 0);
+        pastCard.setBackground(Ui.rounded(this, 0xFFFFFFFF, 30));
+        pastCard.setElevation(px(8));
+        FrameLayout pc = new FrameLayout(this);
+        GradientDrawable pcd = new GradientDrawable();
+        pcd.setShape(GradientDrawable.OVAL);
+        pcd.setColor(Ui.ACCENT);
+        pc.setBackground(pcd);
+        pc.addView(Ui.icon(this, R.drawable.ic_play, 30, Ui.WHITE), new FrameLayout.LayoutParams(px(30), px(30), Gravity.CENTER));
+        pastCard.addView(pc, new LinearLayout.LayoutParams(px(84), px(84)));
+        LinearLayout ptx = new LinearLayout(this);
+        ptx.setOrientation(LinearLayout.VERTICAL);
+        pastLabel = Ui.text(this, "", 13, Ui.BOLD, 0xFF4B5260);
+        pastLabel.setLetterSpacing(0.06f);
+        ptx.addView(pastLabel);
+        pastTitle = Ui.text(this, "", 24, Ui.BOLD, 0xFF0B0D12);
+        pastTitle.setSingleLine(true);
+        pastTitle.setEllipsize(TextUtils.TruncateAt.END);
+        ptx.addView(pastTitle, Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        ptx.addView(Ui.text(this, "OK: bölümü bul  ·  ◀ ▶ diğer programlar", 15, Ui.MEDIUM, 0xFF4B5260), Ui.margins(this, -1, -2, 0, 3, 0, 0));
+        LinearLayout.LayoutParams ptLp = new LinearLayout.LayoutParams(0, -2, 1f);
+        ptLp.leftMargin = px(20);
+        pastCard.addView(ptx, ptLp);
+        pastCard.setFocusable(true);
+        pastCard.setClickable(true);
+        pastCard.setOnClickListener(v -> {
+            if (pastIdx >= 0 && pastIdx < pastList.size()) findEpisodes(pastList.get(pastIdx));
+        });
+        pastCard.setVisibility(View.GONE);
+        LinearLayout.LayoutParams paLp = new LinearLayout.LayoutParams(0, px(122), 640f);
+        paLp.rightMargin = px(28);
+        progRow.addView(pastCard, paLp);
+
         nowCard = new LinearLayout(this);
         nowCard.setGravity(Gravity.CENTER_VERTICAL);
         nowCard.setPadding(px(19), 0, px(28), 0);
@@ -498,6 +544,141 @@ public class PlayerActivity extends Activity {
         panel.addView(progRow, Ui.margins(this, -1, -2, 0, 30, 0, 0)); // logo şeridiyle arasında rahat boşluk
     }
 
+    private static String dayLabel(long t) {
+        java.util.Calendar a = java.util.Calendar.getInstance(), b = java.util.Calendar.getInstance();
+        b.setTimeInMillis(t);
+        int d = a.get(java.util.Calendar.DAY_OF_YEAR) - b.get(java.util.Calendar.DAY_OF_YEAR)
+                + 365 * (a.get(java.util.Calendar.YEAR) - b.get(java.util.Calendar.YEAR));
+        if (d == 0) return "BUGÜN";
+        if (d == 1) return "DÜN";
+        return new java.text.SimpleDateFormat("d MMMM EEEE", Actions.TR).format(new java.util.Date(t)).toUpperCase(Actions.TR);
+    }
+
+    /** i. önceki programı göster (0 = hemen önceki). Önceki program yoksa false. */
+    private boolean showPast(int i) {
+        if (i == 0 || pastList.isEmpty()) pastList = Epg.past(cur());
+        if (i < 0 || i >= pastList.size()) return false;
+        pastIdx = i;
+        Epg.Prog p = pastList.get(i);
+        pastLabel.setText("ÖNCEKİ  ·  " + dayLabel(p.start) + "  " + Epg.hm(p.start) + " – " + Epg.hm(p.end));
+        pastTitle.setText(p.title);
+        if (pastCard.getVisibility() != View.VISIBLE) {
+            // Şimdi kartı yerini önceki karta bırakır, Sıradaki gizlenir
+            nextCard.setVisibility(View.GONE);
+            pastCard.setVisibility(View.VISIBLE);
+            pastCard.setAlpha(0f);
+            pastCard.setTranslationX(-px(40));
+            pastCard.animate().alpha(1f).translationX(0).setDuration(260).setInterpolator(Ui.FOCUS).start();
+        } else {
+            pastTitle.setAlpha(0.3f);
+            pastTitle.animate().alpha(1f).setDuration(200).start();
+        }
+        pastCard.requestFocus();
+        showOsd();
+        return true;
+    }
+
+    private void hidePast() {
+        pastIdx = -1;
+        pastCard.setVisibility(View.GONE);
+        updateProg();
+    }
+
+    // ------------------------------------------------------------------ önceki bölümler
+
+    private void buildEpisodePanel(FrameLayout root) {
+        epPanel = new FrameLayout(this);
+        epPanel.setBackgroundColor(0x99000000);
+        epPanel.setClickable(true);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(px(28), px(26), px(28), px(26));
+        box.setBackground(Ui.rounded(this, 0xF51A1D26, 26));
+        epHead = Ui.text(this, "", 24, Ui.BOLD, Ui.TEXT);
+        epHead.setSingleLine(true);
+        epHead.setEllipsize(TextUtils.TruncateAt.END);
+        box.addView(epHead);
+        box.addView(Ui.text(this, "Kanalların resmi YouTube hesaplarından · Geri: kapat", 15, Ui.REGULAR, Ui.MUTED),
+                Ui.margins(this, -1, -2, 0, 6, 0, 0));
+        android.widget.ScrollView sc = new android.widget.ScrollView(this);
+        sc.setVerticalScrollBarEnabled(false);
+        sc.setVerticalFadingEdgeEnabled(true);
+        sc.setFadingEdgeLength(px(40));
+        epList = new LinearLayout(this);
+        epList.setOrientation(LinearLayout.VERTICAL);
+        epList.setPadding(0, px(8), 0, px(8));
+        sc.addView(epList);
+        box.addView(sc, Ui.margins(this, -1, -1, 0, 16, 0, 0));
+        FrameLayout.LayoutParams bLp = new FrameLayout.LayoutParams(px(560), -1, Gravity.END);
+        bLp.setMargins(0, px(Ui.edgeY(this)), px(Ui.edgeX(this) * 0.6f), px(Ui.edgeY(this)));
+        epPanel.addView(box, bLp);
+        epPanel.setVisibility(View.GONE);
+        root.addView(epPanel, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    private void epMessage(String m) {
+        epList.removeAllViews();
+        epList.addView(Ui.text(this, m, 19, Ui.MEDIUM, Ui.SOFT), Ui.margins(this, -1, -2, 4, 12, 0, 0));
+    }
+
+    /** Programın resmi bölümlerini arar ve listeler. */
+    private void findEpisodes(Epg.Prog p) {
+        final Channel c = cur();
+        epOpen = true;
+        epHead.setText(p.title);
+        epMessage("Bölümler aranıyor…");
+        Ui.fadeIn(epPanel, 0);
+        final int t = ++epToken;
+        EpisodeFinder.search(p.title, c.name, results -> {
+            if (t != epToken || !epOpen) return;
+            if (results.isEmpty()) {
+                epMessage("Bu program için yüklenmiş bir bölüm bulunamadı. Bölümler genelde yayından birkaç saat sonra yüklenir.");
+                return;
+            }
+            epList.removeAllViews();
+            for (EpisodeFinder.Result r : results) epList.addView(epRow(r, p, c), Ui.margins(this, -1, -2, 0, 0, 0, 10));
+            epList.getChildAt(0).requestFocus();
+        });
+    }
+
+    private View epRow(EpisodeFinder.Result r, Epg.Prog p, Channel c) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(px(20), px(14), px(20), px(14));
+        row.setFocusable(true);
+        row.setClickable(true);
+        TextView title = Ui.text(this, r.title, 19, Ui.BOLD, Ui.TEXT);
+        title.setMaxLines(2);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        row.addView(title);
+        String meta = r.channel + (r.length.isEmpty() ? "" : "  ·  " + r.length) + (r.published.isEmpty() ? "" : "  ·  " + r.published);
+        TextView m = Ui.text(this, meta, 15, Ui.REGULAR, Ui.SOFT);
+        row.addView(m, Ui.margins(this, -1, -2, 0, 5, 0, 0));
+        row.setBackground(Ui.rounded(this, 0x14FFFFFF, 18));
+        row.setOnFocusChangeListener((v, has) -> {
+            v.setBackground(Ui.rounded(this, has ? 0xFFFFFFFF : 0x14FFFFFF, 18));
+            title.setTextColor(has ? 0xFF0B0D12 : Ui.TEXT);
+            m.setTextColor(has ? 0xFF4B5260 : Ui.SOFT);
+        });
+        row.setOnClickListener(v -> {
+            hideEpisodes();
+            Intent i = new Intent(this, EpisodeActivity.class)
+                    .putExtra(EpisodeActivity.EXTRA_ID, r.id)
+                    .putExtra(EpisodeActivity.EXTRA_TITLE, r.title)
+                    .putExtra(EpisodeActivity.EXTRA_SUB, c.name + "  ·  " + p.title);
+            startActivity(i);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        });
+        return row;
+    }
+
+    private void hideEpisodes() {
+        epOpen = false;
+        epToken++;
+        Ui.fadeOut(epPanel, 0);
+        if (pastCard.getVisibility() == View.VISIBLE) pastCard.requestFocus();
+    }
+
     private static boolean mainVisible() {
         return MainActivity.visibleNow;
     }
@@ -548,6 +729,7 @@ public class PlayerActivity extends Activity {
         } else {
             nextCard.setVisibility(View.GONE);
         }
+        if (pastCard != null && pastCard.getVisibility() == View.VISIBLE) nextCard.setVisibility(View.GONE);
         if (progRow.getVisibility() != View.VISIBLE) Ui.fadeIn(progRow, px(8));
     }
 
@@ -722,6 +904,10 @@ public class PlayerActivity extends Activity {
     }
 
     private void changeChannel(int i) {
+        if (pastCard != null) {
+            pastIdx = -1;
+            pastCard.setVisibility(View.GONE);
+        }
         retries = 0;
         altTried = false;
         ytBehindSec = 0;
@@ -1209,9 +1395,14 @@ public class PlayerActivity extends Activity {
 
     private void hideOsd() {
         ui.removeCallbacks(hideOsd);
+        if (epOpen) return; // bölüm listesi açıkken menü açık kalır
         if (errorPanel.getVisibility() == View.VISIBLE) return;
         boolean hadFocus = osd.hasFocus();
         if (hadFocus) sink.requestFocus();
+        if (pastCard != null && pastCard.getVisibility() == View.VISIBLE) { // menü kapanınca önceki programlardan çık
+            pastIdx = -1;
+            pastCard.setVisibility(View.GONE);
+        }
         Ui.fadeOut(osd, px(24));
         Ui.fadeOut(clockBox, -px(12));
     }
@@ -1696,6 +1887,14 @@ public class PlayerActivity extends Activity {
             }
         }
 
+        if (epOpen) { // bölüm listesi açık: Geri kapatır, gerisi listede gezinir
+            if (e.getAction() == KeyEvent.ACTION_DOWN && k == KeyEvent.KEYCODE_BACK) {
+                hideEpisodes();
+                return true;
+            }
+            return super.dispatchKeyEvent(e);
+        }
+
         if (zapOpen) {
             switch (k) {
                 case KeyEvent.KEYCODE_BACK:
@@ -1758,6 +1957,19 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 if (barFocused) {
                     showOsd();
+                    View f = getCurrentFocus();
+                    boolean left = k == KeyEvent.KEYCODE_DPAD_LEFT;
+                    // Şimdi kartında ◀: önceki programlara git
+                    if (left && f == nowCard && showPast(0)) return true;
+                    if (f == pastCard) {
+                        if (left) showPast(pastIdx + 1);
+                        else if (pastIdx > 0) showPast(pastIdx - 1);
+                        else {
+                            hidePast();
+                            nowCard.requestFocus();
+                        }
+                        return true;
+                    }
                     return super.dispatchKeyEvent(e);
                 }
                 seekKey(e, k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);

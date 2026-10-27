@@ -99,6 +99,12 @@
         </service>
 
         <activity
+            android:name=".EpisodeActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+
+        <activity
             android:name=".VideoActivity"
             android:exported="false"
             android:screenOrientation="landscape"

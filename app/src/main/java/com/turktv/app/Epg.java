@@ -93,6 +93,37 @@ final class Epg {
         return null;
     }
 
+    /** Şu anki programdan önceki programlar (yeniden eskiye), en fazla 7 gün geriye. */
+    static synchronized List<Prog> past(Channel c) {
+        List<Prog> out = new ArrayList<>();
+        List<Prog> l = byName.get(c.name);
+        if (l == null) return out;
+        long t = System.currentTimeMillis();
+        for (int i = l.size() - 1; i >= 0; i--) if (l.get(i).end <= t) out.add(l.get(i));
+        return out;
+    }
+
+    /** Yeni rehbere, eskisindeki geçmiş programları ekler (listede artık olmayan eski günler korunur). */
+    private static void mergeHistory(Map<String, List<Prog>> m) {
+        Map<String, List<Prog>> old;
+        synchronized (Epg.class) {
+            old = byName;
+        }
+        long keep = System.currentTimeMillis() - 7 * 24 * 3600_000L;
+        for (Map.Entry<String, List<Prog>> e : old.entrySet()) {
+            List<Prog> fresh = m.get(e.getKey());
+            long first = fresh == null || fresh.isEmpty() ? Long.MAX_VALUE : fresh.get(0).start;
+            List<Prog> add = new ArrayList<>();
+            for (Prog p : e.getValue()) if (p.end > keep && p.start < first) add.add(p);
+            if (add.isEmpty()) continue;
+            if (fresh == null) {
+                fresh = new ArrayList<>();
+                m.put(e.getKey(), fresh);
+            }
+            fresh.addAll(0, add);
+        }
+    }
+
     static String hm(long t) {
         return new SimpleDateFormat("HH:mm", Actions.TR).format(new java.util.Date(t));
     }
@@ -111,6 +142,7 @@ final class Epg {
             try {
                 Map<String, List<Prog>> m = download(url, channels);
                 if (!m.isEmpty()) {
+                    mergeHistory(m);
                     long t = System.currentTimeMillis();
                     JSONObject root = new JSONObject();
                     root.put("t", t);
@@ -156,7 +188,7 @@ final class Epg {
         Map<String, Channel> xmlIdToChannel = new HashMap<>();
         Map<String, List<Prog>> out = new HashMap<>();
         long now = System.currentTimeMillis();
-        long from = now - 3 * 3600_000L, to = now + 30 * 3600_000L;
+        long from = now - 7 * 24 * 3600_000L, to = now + 30 * 3600_000L; // geçmiş programlar da (önceki bölümler için)
 
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
         con.setConnectTimeout(15000);
