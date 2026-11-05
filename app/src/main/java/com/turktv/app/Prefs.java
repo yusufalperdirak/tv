@@ -135,6 +135,12 @@ final class Prefs {
     static void showPrayer(Context c, boolean v) { p(c).edit().putBoolean("showPrayer", v).apply(); }
 
     /** Gece modu: belirlenen saatlerde ses sınırlanır, görüntü hafifçe kararır. */
+    /** Kontrol Merkezi parlaklığı (10–100). */
+    static int brightness(Context c) { return p(c).getInt("brightness", 100); }
+    static void brightness(Context c, int v) { p(c).edit().putInt("brightness", v).apply(); }
+    static boolean askedWriteSettings(Context c) { return p(c).getBoolean("askedWrite", false); }
+    static void askedWriteSettings(Context c, boolean v) { p(c).edit().putBoolean("askedWrite", v).apply(); }
+
     static boolean nightMode(Context c) { return p(c).getBoolean("nightMode", false); }
     static void nightMode(Context c, boolean v) { p(c).edit().putBoolean("nightMode", v).apply(); }
 

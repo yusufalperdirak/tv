@@ -87,6 +87,46 @@ public class MainActivity extends Activity {
     private boolean checkedUpdate;
 
     private final Runnable previewRunnable = this::startPreview;
+    private ControlCenter cc;
+    private int previewSrc = -1; // Kontrol Merkezi › Kaynak değiştir ile seçilen önizleme kaynağı
+    private final Runnable sleepCheck = new Runnable() {
+        @Override
+        public void run() {
+            // uyku zamanlayıcısı ana ekrandayken dolarsa: önizleme durur, ekran koruyucu açılır
+            if (Prefs.sleepAt > 0 && System.currentTimeMillis() >= Prefs.sleepAt) {
+                Prefs.sleepAt = 0;
+                ytToken++;
+                preview.stop();
+                ytPreview.stop();
+                showSaver();
+                return;
+            }
+            ui.postDelayed(this, 20_000);
+        }
+    };
+
+    private void openControlCenter() {
+        autoArmed = false;
+        ui.removeCallbacks(autoWatch);
+        rowsClip.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        cc.open();
+    }
+
+    /** Önizlemede sıradaki kaynağa geç (web sayfası kaynakları atlanır). */
+    private void cyclePreviewSource() {
+        if (selected == null) return;
+        java.util.List<String> all = Sources.of(this, selected), direct = new java.util.ArrayList<>();
+        for (String u : all) if (!u.startsWith(Sources.WEB)) direct.add(u);
+        if (direct.size() <= 1) {
+            Toast.makeText(this, selected.name + " için başka kaynak yok", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        previewSrc = (Math.max(0, previewSrc) + 1) % direct.size();
+        String u = direct.get(previewSrc);
+        Sources.good(this, selected, u);
+        preview.play(selected.withUrl(u), !Prefs.previewSound(this), true);
+        Toast.makeText(this, selected.name + " · kaynak " + (previewSrc + 1) + " / " + direct.size(), Toast.LENGTH_SHORT).show();
+    }
     /**
      * Tam ekran izleme bu ekranın üstünde saydam açılır ve aynı oynatıcıyı kullanır:
      * video hiç durmaz, geçişlerde siyah ekran olmaz.
@@ -113,7 +153,8 @@ public class MainActivity extends Activity {
     private boolean leaving;
     private FrameLayout uiLayer;
     private final Runnable autoWatch = () -> {
-        if (!resumed || appsMode || !autoArmed || leaving || !hasWindowFocus() || clock.isFocused()) return;
+        if (!resumed || appsMode || !autoArmed || leaving || !hasWindowFocus() || clock.isFocused()
+                || (cc != null && cc.isOpen())) return;
         if (previewPlaying) fadeAndWatch();
         else autoPending = true;
     };
@@ -271,6 +312,7 @@ public class MainActivity extends Activity {
         // Satırlar saatin altından başlayan bir alanda kayar: yukarı kayınca sağ üstteki saatin üstüne binmez
         // yukarı kayan satırlar sert kesilmez: ekranın üstüne doğru yumuşakça silinir
         rowsClip = new FadeFrame(this, px(40), px(ROWS_CLIP_TOP + 110));
+        rowsClip.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         rowsClip.setClipChildren(false);
         uiLayer.addView(rowsClip, new FrameLayout.LayoutParams(-1, -1));
         FrameLayout.LayoutParams rLp = new FrameLayout.LayoutParams(-1, px(3000), Gravity.TOP); // uzun uygulama ızgarası sığsın
@@ -321,6 +363,19 @@ public class MainActivity extends Activity {
         rowB.addView(appCards);
         rowsCol.addView(rowB, Ui.margins(this, -1, -2, 0, 18 - PANEL_OUT, 0, 0));
 
+        // Kontrol Merkezi: saatin altında, saat önde kalır (tvOS'teki gibi)
+        cc = new ControlCenter(this, getWindow(), new ControlCenter.Host() {
+            @Override public void openToday() { go(new Intent(MainActivity.this, TodayActivity.class)); }
+            @Override public void openSearch() { go(new Intent(MainActivity.this, SearchActivity.class)); }
+            @Override public void startSaver() { showSaver(); }
+            @Override public void cycleSource() { cyclePreviewSource(); }
+            @Override public void closed() {
+                rowsClip.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+                clock.requestFocus();
+            }
+        });
+        uiLayer.addView(cc, new FrameLayout.LayoutParams(-1, -1));
+        if (statusBar != null) statusBar.bringToFront();
         setContentView(root);
     }
 
@@ -359,7 +414,10 @@ public class MainActivity extends Activity {
         bar.addView(dateText, Ui.margins(this, -2, -2, 0, 0, 12, 0));
 
         clock = new ClockPill(this);
-        clock.setOnClickListener(v -> go(new Intent(this, TodayActivity.class)));
+        clock.setOnClickListener(v -> {
+            if (cc.isOpen()) cc.close();
+            else openControlCenter();
+        });
         clock.setOnKeyListener((v, code, ev) -> {
             if (ev.getAction() == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_DOWN) {
                 focusSelectedChannel();
@@ -924,6 +982,10 @@ public class MainActivity extends Activity {
         int k = e.getKeyCode();
         ui.removeCallbacks(saver);
         ui.postDelayed(saver, SAVER_MS);
+        if (cc != null && cc.isOpen()) { // Kontrol Merkezi açık: tuşlar onun
+            if (cc.handleKey(e)) return true;
+            return super.dispatchKeyEvent(e);
+        }
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             autoArmed = true;
             ui.removeCallbacks(autoWatch);
@@ -992,6 +1054,9 @@ public class MainActivity extends Activity {
         super.onResume();
         // TV'nin kendi ekran koruyucusu yerine bizimki: ekran açık kalır, 5 dk tuşa basılmazsa açılır
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        ControlCenter.applyBrightness(this, getWindow());
+        ui.removeCallbacks(sleepCheck);
+        ui.post(sleepCheck);
         ui.removeCallbacks(saver);
         ui.postDelayed(saver, SAVER_MS);
         if (builtEdge != Prefs.edge(this)) {
@@ -1062,6 +1127,8 @@ public class MainActivity extends Activity {
         resumed = false;
         visibleNow = false;
         ui.removeCallbacks(saver);
+        ui.removeCallbacks(sleepCheck);
+        if (cc != null && cc.isOpen() && !overlayPlayer) cc.close();
         ui.removeCallbacks(previewRunnable);
         ui.removeCallbacks(autoWatch);
         ui.removeCallbacks(tick);

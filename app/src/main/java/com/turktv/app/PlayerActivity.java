@@ -242,6 +242,7 @@ public class PlayerActivity extends Activity {
 
         setContentView(root);
         sink.requestFocus();
+        ControlCenter.applyBrightness(this, getWindow()); // Kontrol Merkezi parlaklığı
         quietStart = getIntent().getBooleanExtra(EXTRA_QUIET, false);
         if (quietStart) { // önizlemeden kendiliğinden geçiş: ekranda yalnızca video
             osd.setVisibility(View.GONE);
