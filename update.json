@@ -1,5 +1,5 @@
 {
- "versionCode": 32,
- "versionName": "9.3",
- "notes": "Radyo kayıtlı istasyonları ferahladı, navigasyonda gidiş yönü yukarıda (pusulaya dokunarak kuzeye çevrilebilir), haritada çok daha fazla işletme ve mekan."
+ "versionCode": 34,
+ "versionName": "10.1",
+ "notes": "Sade harita, akıcı navigasyon, radyo uygulaması açılmadan kontrol, tarama, Bluetooth'a geçişte radyo susar."
 }
