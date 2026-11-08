@@ -1,5 +1,5 @@
 {
- "versionCode": 34,
- "versionName": "10.1",
- "notes": "Sade harita, akıcı navigasyon, radyo uygulaması açılmadan kontrol, tarama, Bluetooth'a geçişte radyo susar."
+ "versionCode": 35,
+ "versionName": "10.2",
+ "notes": "İzin ekranı tekrar açılmaz, Bluetooth aktarım uyarısı kapatılır, radyo/Bluetooth uygulama açılmadan kontrol, vektör harita yedeği, daha çok radar."
 }
