@@ -1,0 +1,7 @@
+name: t
+on: [push]
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ls $ANDROID_HOME/build-tools; ls $ANDROID_HOME/platforms
