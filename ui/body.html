@@ -1,0 +1,76 @@
+<div id="st">
+ <div class="tabs">
+  <svg class="frame" viewBox="0 0 980 64" preserveAspectRatio="none" aria-hidden="true" id="frame"></svg>
+  <button class="tb" data-t="ana" aria-label="Müzik" style="left:0;width:327px"><svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v11.3A3.5 3.5 0 1011 17V8h7V3H9z"/></svg></button>
+  <button class="tb" data-t="nav" aria-label="Navigasyon" style="left:327px;width:326px"><svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l7 20-7-5-7 5z"/></svg></button>
+  <button class="tb" data-t="arac" aria-label="Araç" style="left:653px;width:327px"><svg width="44" height="34" viewBox="0 0 32 24" fill="currentColor"><path d="M6 10l3-5h12l4 5h2a2 2 0 012 2v5h-3a3 3 0 01-6 0h-8a3 3 0 01-6 0H3v-5a2 2 0 012-2h1zm4-3l-2 3h6V7h-4zm6 0v3h7l-2.5-3H16z"/></svg></button>
+ </div>
+
+ <!-- MUZIK -->
+ <div class="pg show" id="p-ana">
+  <div class="ind"><span id="i1"></span><span id="i2"></span><span id="i3"></span></div>
+  <div class="mid"><span class="src" id="src"></span><span class="stn" id="stn"></span></div>
+  <div class="sub" id="sub"></div>
+  <div class="prog" id="prog"><i id="pg"></i></div>
+  <div class="soft">
+   <button class="key" id="kR">Radyo</button><button class="key" id="kB">Bluetooth</button>
+   <span class="vsep"></span>
+   <button class="key" id="pv" aria-label="Önceki"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2.5v14H6zM20 5v14L9 12z"/></svg></button>
+   <button class="key pp" id="pp" aria-label="Oynat"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path id="pi" d="M7 4l13 8-13 8z"/></svg></button>
+   <button class="key" id="nx" aria-label="Sonraki"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 5H18v14h-2.5zM4 5v14l11-7z"/></svg></button>
+  </div>
+ </div>
+
+ <!-- NAVIGASYON -->
+ <div class="pg pgnav" id="p-nav">
+  <div class="mapw" data-k="1.1"><div class="plane"><canvas></canvas><i class="anc"></i></div></div>
+  <div class="puck" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24"><path d="M12 2l8 20-8-5-8 5z" fill="#FFE53A" stroke="#4A1D06" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
+  <div class="ninfo" id="ninfo" style="display:none"><div class="a"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path id="tarrow" d="M12 20V5M6 11l6-6 6 6"/></svg><b id="ndist"></b></div><span id="ntext"></span></div>
+  <div class="spd" id="spd"><b id="sv">0</b><span id="sh">km/s</span></div>
+  <div class="nrt" id="nrt"><b id="nr1"></b><span id="nr2"></span></div>
+ </div>
+
+ <!-- ARAC -->
+ <div class="pg" id="p-arac">
+  <div class="half cl" id="info">
+   <h3><span>ARAÇ BİLGİLERİ</span><button class="mini" id="toSet">Ayarlar <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 5l7 7-7 7"/></svg></button></h3>
+   <div class="kv"><span>Hız</span><b id="v1">–</b></div>
+   <div class="kv"><span>Yön</span><b id="v2">–</b></div>
+   <div class="kv"><span id="wxl">Hava</span><b id="v3">–</b></div>
+   <div class="kv"><span>Rakım</span><b id="v4">–</b></div>
+   <div class="kv"><span>GPS uydu</span><b id="v5">–</b></div>
+   <div class="kv" style="border:0"><span>Konum</span><b id="v6" class="small">–</b></div>
+  </div>
+  <div class="half cl" id="sets" style="display:none">
+   <h3><span>AYARLAR</span><button class="mini" id="toInfo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M15 5l-7 7 7 7"/></svg> Araç bilgileri</button></h3>
+   <button class="lrow" id="toKeys"><span>Direksiyon tuşları</span><small id="kss">›</small></button>
+   <button class="lrow" id="toIz"><span>İzinler</span><small id="izs">›</small></button>
+   <button class="lrow" id="sSound"><span>Ses ayarları</span><small>›</small></button>
+   <button class="lrow" id="sBt"><span>Bluetooth</span><small>›</small></button>
+   <div class="lrow" style="border:0"><span>Hakkında</span><small id="ver">GurbetMap Sport</small></div>
+  </div>
+  <span class="vdiv"></span>
+  <div class="half cr">
+   <div class="phone" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+   <div class="cpt"><h2 id="cph">iPhone bekleniyor</h2>
+    <div class="steps" id="steps"><div class="on"><b>1</b>Bluetooth ve Wi-Fi açık olsun</div><div><b>2</b>iPhone'u araçla eşleştirin</div><div><b>3</b>CarPlay'e izin verin</div></div>
+    <button class="key on" id="go">CarPlay'i Başlat</button>
+   </div>
+  </div>
+ </div>
+
+ <!-- IZINLER -->
+ <div class="pg" id="p-izin">
+  <div class="izhd"><button class="mini" id="izBack"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M15 5l-7 7 7 7"/></svg> Ayarlar</button><h3>İZİNLER</h3><span class="izsum"><span class="segs" id="segs"></span><span id="izt"></span></span></div>
+  <div class="izl" id="izl"></div>
+ </div>
+
+ <!-- DIREKSIYON TUSLARI -->
+ <div class="pg" id="p-keys">
+  <div class="izhd"><button class="mini" id="kBack"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M15 5l-7 7 7 7"/></svg> Ayarlar</button><h3>DİREKSİYON TUŞLARI</h3><span class="izsum" id="kst"></span></div>
+  <div class="warn" id="kwarn"><span>Tuşları yakalamak için Erişilebilirlik izni gerekli</span><button class="key on" id="kacc">İzin ver</button></div>
+  <div class="izl kl" id="kl"></div>
+ </div>
+
+ <div class="bar"><span id="btmp">--°</span><span class="d" id="date"></span><span class="t" id="clk"></span></div>
+</div>

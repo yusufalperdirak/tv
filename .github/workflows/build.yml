@@ -1,0 +1,35 @@
+name: GurbetSport derle
+on:
+  push:
+    branches: [gurbetsport-src]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Derle
+        id: b
+        continue-on-error: true
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --console=plain 2>&1 | tee build.log
+      - name: Sonucu dala yaz
+        if: always()
+        run: |
+          mkdir -p out
+          cp build.log out/ || true
+          cp app/build/outputs/apk/release/app-release.apk out/GurbetSport.apk || true
+          echo "${{ steps.b.outcome }} ${GITHUB_SHA}" > out/status.txt
+          cd out
+          git init -q
+          git checkout -q -b gurbetsport-build
+          git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -qm "build ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" gurbetsport-build

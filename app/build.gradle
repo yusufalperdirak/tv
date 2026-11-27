@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.yusufalperdirak.gurbetsport'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.yusufalperdirak.gurbetsport'
+        minSdk 24
+        targetSdk 33
+        versionCode 36
+        versionName '11.0'
+    }
+
+    // Sabit imza: her surum ayni anahtarla imzalanir, guncellemeler ustune kurulur.
+    signingConfigs {
+        gs {
+            storeFile rootProject.file('signing/gurbetsport.jks')
+            storePassword 'gurbetsport'
+            keyAlias 'gurbetsport'
+            keyPassword 'gurbetsport'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.gs
+        }
+        debug {
+            signingConfig signingConfigs.gs
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
